@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+.env
+.env.*
+.venv/
+venv/
+env/
+# VSCode
+.vscode/
+# macOS
+.DS_Store
+# Jupyter
+.ipynb_checkpoints/
+# log
+*.log 
