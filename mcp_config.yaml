@@ -1,0 +1,17 @@
+agents:
+  - id: agent_a
+    name: Agent A
+    type: function
+    function: agents.agent_a.respond
+  - id: agent_b
+    name: Agent B
+    type: function
+    function: agents.agent_b.respond
+
+routes:
+  default:
+    steps:
+      - agent: agent_a
+        input: "{{query}}"
+      - agent: agent_b
+        input: "{{query}}" 

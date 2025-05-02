@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>智慧 Agent 選擇體驗</title>
+  <style>
+    body { font-family: "Noto Sans TC", Arial, sans-serif; background: #f7f7f7; }
+    #chat { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0001; padding: 24px; }
+    .msg { margin: 12px 0; }
+    .user { color: #1976d2; }
+    .bot { color: #388e3c; }
+    .option-btn { margin: 4px 4px 0 0; padding: 6px 16px; border: none; border-radius: 4px; background: #e3f2fd; cursor: pointer; }
+    .option-btn:hover { background: #bbdefb; }
+    #input-area { display: flex; gap: 8px; margin-top: 16px; }
+    #user-input { flex: 1; padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
+    #send-btn { padding: 8px 20px; border: none; border-radius: 4px; background: #1976d2; color: #fff; cursor: pointer; }
+    #send-btn:hover { background: #1565c0; }
+    .dot-flashing {
+      position: relative;
+      width: 10px;
+      height: 10px;
+      border-radius: 5px;
+      background-color: #1976d2;
+      color: #1976d2;
+      animation: dotFlashing 1s infinite linear alternate;
+      margin-right: 8px;
+      display: inline-block;
+    }
+    @keyframes dotFlashing {
+      0% { opacity: 1; }
+      50% { opacity: .3; }
+      100% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="chat">
+    <div id="messages"></div>
+    <div id="input-area">
+      <input id="user-input" type="text" placeholder="請輸入你的問題..." autocomplete="off" />
+      <button id="send-btn">送出</button>
+    </div>
+  </div>
+  <script>
+    const apiUrl = "http://localhost:8000/query";
+    let lastOptions = null; // 記錄 options 給第二輪用
+
+    function addMsg(text, sender = "bot") {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = "msg " + sender;
+      msgDiv.innerHTML = text;
+      document.getElementById("messages").appendChild(msgDiv);
+      document.getElementById("chat").scrollTop = 99999;
+      return msgDiv;
+    }
+
+    function showLoading() {
+      // 加入動畫
+      addMsg('<span id="loading-msg"><span class="dot-flashing"></span> 正在查詢，請稍候...</span>', "bot");
+    }
+    function hideLoading() {
+      const loading = document.getElementById("loading-msg");
+      if (loading) loading.parentNode.remove();
+    }
+
+    async function sendQuery(query, userReply = null, options = null, confirmAll = false) {
+      let body = { query };
+      if (userReply && options) {
+        body.user_reply = userReply;
+        body.options = options;
+      }
+      if (confirmAll) body.confirm_all = true;
+
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      return await res.json();
+    }
+
+    async function handleUserInput() {
+      const input = document.getElementById("user-input");
+      const text = input.value.trim();
+      if (!text) return;
+      addMsg("你：" + text, "user");
+      input.value = "";
+      input.disabled = true;
+      document.getElementById("send-btn").disabled = true;
+
+      showLoading(); // 顯示 loading
+
+      let response;
+      if (lastOptions) {
+        // 如果用戶輸入「全部」或「all」等，直接查詢所有 agent
+        const allWords = ["全部", "all", "都要", "全部查"];
+        if (allWords.includes(text.trim().toLowerCase())) {
+          response = await sendQuery("", null, lastOptions, true);
+          lastOptions = null;
+        } else {
+          response = await sendQuery("", text, lastOptions);
+          lastOptions = null;
+        }
+      } else {
+        response = await sendQuery(text);
+      }
+
+      hideLoading(); // 移除 loading
+
+      if (response.results) {
+        response.results.forEach(r => {
+          addMsg(
+            `<b>【${r.ref?.name || r.agent}】</b><br>${typeof r.result === "string" ? r.result : JSON.stringify(r.result, null, 2)}`,
+            "bot"
+          );
+        });
+      } else if (response.options) {
+        // 產生 checkbox 選單
+        let checkboxes = response.options.map((opt, idx) =>
+          `<label style="display:block;margin:6px 0;">
+            <input type="checkbox" class="agent-checkbox" value="${opt.id}" ${idx===0?'checked':''}>
+            <b>${opt.name}</b> <small>(${opt.description})</small>
+          </label>`
+        ).join("");
+        // 全選/取消全選按鈕
+        checkboxes = `
+          <div id="agent-checkboxes">${checkboxes}</div>
+          <button class="option-btn" onclick="selectAllAgents(true)">全選</button>
+          <button class="option-btn" onclick="selectAllAgents(false)">取消全選</button>
+          <button class="option-btn" onclick="submitSelectedAgents()">查詢</button>
+        `;
+        addMsg(response.message, "bot");
+        addMsg(checkboxes, "bot");
+        lastOptions = response.options;
+      } else if (response.message) {
+        addMsg(response.message, "bot");
+      }
+
+      input.disabled = false;
+      document.getElementById("send-btn").disabled = false;
+      input.focus();
+    }
+
+    // 全選/取消全選功能
+    window.selectAllAgents = function(flag) {
+      document.querySelectorAll('.agent-checkbox').forEach(cb => cb.checked = flag);
+    }
+
+    // 送出勾選的 agent
+    window.submitSelectedAgents = async function() {
+      const checked = Array.from(document.querySelectorAll('.agent-checkbox:checked')).map(cb => cb.value);
+      if (checked.length === 0) {
+        addMsg("請至少選擇一個 agent！", "bot");
+        return;
+      }
+      // 用戶選擇的 agent id
+      const selectedOptions = lastOptions.filter(opt => checked.includes(opt.id));
+      showLoading();
+      // 直接查詢這些 agent
+      const response = await sendQuery("", null, selectedOptions, true);
+      hideLoading();
+      lastOptions = null;
+      if (response.results) {
+        response.results.forEach(r => {
+          addMsg(
+            `<b>【${r.ref?.name || r.agent}】</b><br>${typeof r.result === "string" ? r.result : JSON.stringify(r.result, null, 2)}`,
+            "bot"
+          );
+        });
+      } else if (response.message) {
+        addMsg(response.message, "bot");
+      }
+    }
+
+    document.getElementById("send-btn").onclick = handleUserInput;
+    document.getElementById("user-input").addEventListener("keydown", e => {
+      if (e.key === "Enter") handleUserInput();
+    });
+  </script>
+</body>
+</html> 
