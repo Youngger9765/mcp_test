@@ -6,7 +6,7 @@ from agent_registry import AGENT_LIST
 load_dotenv()  # 自動載入 .env
 
 # 建議用環境變數管理 API Key
-openai.api_key = os.getenv("OPENAI_API_KEY", "sk-xxxx")  # 請改成你的 key
+openai.api_key = os.getenv("OPENAI_API_KEY", "")  # 請改成你的 key
 
 def build_llm_prompt(query: str) -> tuple[str, str]:
     agent_descriptions = "\n".join([
