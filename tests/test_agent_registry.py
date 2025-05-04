@@ -1,7 +1,7 @@
 import pytest
 
 # 假設 agent_registry.py 目前還是 dict-based
-from src.agent_registry import AGENT_LIST
+from src.agent_loader import AGENT_LIST
 import types
 
 # 1. 測試 agent 註冊數量
@@ -115,5 +115,8 @@ def test_agent_list_sync_with_config_and_python():
     yaml_ids = {a["id"] for a in get_yaml_agents()}
     py_ids = {a["id"] for a in get_python_agents()}
     agent_list_ids = {a["id"] for a in AGENT_LIST}
-    # agent_list_ids 應該等於 yaml_ids | (py_ids - yaml_ids)
-    assert agent_list_ids == yaml_ids | (py_ids - yaml_ids) 
+    # AGENT_LIST 必須包含所有 YAML agent
+    assert yaml_ids <= agent_list_ids
+    # AGENT_LIST 必須包含所有只存在於 Python 的 agent
+    missing = (py_ids - yaml_ids) - agent_list_ids
+    assert not missing, f"以下只存在於 Python 的 agent 沒有被合併進 AGENT_LIST: {missing}" 

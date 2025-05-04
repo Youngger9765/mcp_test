@@ -5,14 +5,12 @@ agents:
     example_queries:
       - 請幫我查一下影片剪輯教學
       - 什麼是 YouTuber？
-    respond: src.agent_registry.AgentA().respond
 
   - id: agent_b
     name: B Agent
     description: 適合查詢 B 網站的專業資料或特定主題。
     example_queries:
       - B 網站有什麼新消息？
-    respond: src.agent_registry.AgentB().respond
 
 routes:
   default:

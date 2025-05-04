@@ -104,9 +104,23 @@ class SecretAgent(BaseAgent):
 
 def get_python_agents():
     """
-    回傳只有 Python 端才有的 agent（不在 YAML 裡出現）
+    回傳所有 Python 端的 agent（for 合併用）
     """
     return [
+        {
+            "id": AgentA.id,
+            "name": AgentA.name,
+            "description": AgentA.description,
+            "example_queries": AgentA.example_queries,
+            "respond": AgentA().respond
+        },
+        {
+            "id": AgentB.id,
+            "name": AgentB.name,
+            "description": AgentB.description,
+            "example_queries": AgentB.example_queries,
+            "respond": AgentB().respond
+        },
         {
             "id": JunyiTreeAgent.id,
             "name": JunyiTreeAgent.name,
@@ -149,15 +163,4 @@ agent_manager.register(AgentA())
 agent_manager.register(AgentB())
 agent_manager.register(JunyiTreeAgent())
 agent_manager.register(JunyiTopicAgent())
-
-# 若需要 dict 格式的 AGENT_LIST（for 前端或測試相容）
-AGENT_LIST = [
-    {
-        "id": agent.id,
-        "name": agent.name,
-        "description": agent.description,
-        "example_queries": agent.example_queries,
-        "respond": agent.respond
-    }
-    for agent in agent_manager.all_agents()
-] 
+agent_manager.register(SecretAgent()) 
