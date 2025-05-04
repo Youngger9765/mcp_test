@@ -13,6 +13,7 @@
 - [維護建議與 FAQ](#維護建議與-faq)
 - [相關檔案說明](#相關檔案說明)
 - [進度追蹤](#進度追蹤)
+- [測試說明](#測試說明)
 
 ---
 
@@ -146,3 +147,43 @@
 - 設計更彈性的前後端資料 schema
 
 ---
+
+## 測試說明
+
+### 1. 安裝測試套件
+
+```bash
+pip install pytest
+```
+
+### 2. 執行所有測試
+
+```bash
+pytest
+```
+
+### 3. 執行特定測試檔案
+
+```bash
+pytest tests/test_agent_registry.py
+```
+
+### 4. 顯示詳細測試過程
+
+```bash
+pytest -v
+```
+
+### 5. 產生測試覆蓋率報告（可選）
+
+```bash
+pip install pytest-cov
+pytest --cov=src
+```
+
+---
+
+**說明：**
+- 所有測試程式放在 `tests/` 目錄下。
+- 主要測試 agent 註冊、合併、respond 格式與 API schema。
+- 若有新增 agent 或調整架構，請務必執行測試確保正確性。
