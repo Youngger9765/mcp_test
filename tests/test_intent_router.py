@@ -1,4 +1,4 @@
-from intent_router import analyze_intent
+from src.intent_router import analyze_intent
 
 def test_all_api():
     assert set(analyze_intent("給我全部的 API")) == {"agent_a", "agent_b", "junyi_tree_agent", "junyi_topic_agent"}

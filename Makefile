@@ -7,7 +7,7 @@ install:
 
 # 執行所有測試（自動設 PYTHONPATH）
 test:
-	PYTHONPATH=. pytest
+	PYTHONPATH=. pytest tests/
 
 # 只測試 tests/ 目錄
 test-only:
