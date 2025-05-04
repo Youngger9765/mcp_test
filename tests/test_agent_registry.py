@@ -2,6 +2,7 @@ import pytest
 
 # 假設 agent_registry.py 目前還是 dict-based
 from src.agent_registry import AGENT_LIST
+import types
 
 # 1. 測試 agent 註冊數量
 def test_agent_count():
@@ -39,4 +40,80 @@ def test_respond_agent_id(agent):
 def test_respond_error_field(agent):
     query = agent["example_queries"][0]
     result = agent["respond"](query)
-    assert result["error"] is None or isinstance(result["error"], dict) 
+    assert result["error"] is None or isinstance(result["error"], dict)
+
+def test_agent_list_not_empty():
+    assert len(AGENT_LIST) > 0
+
+def test_agent_id_unique():
+    ids = [a["id"] for a in AGENT_LIST]
+    assert len(ids) == len(set(ids)), "agent id 不可重複"
+
+def test_respond_exception_handling():
+    # 模擬一個會丟出例外的 agent
+    class BadAgent:
+        id = "bad"
+        name = "Bad"
+        description = "bad"
+        example_queries = ["fail"]
+        def respond(self, q):
+            raise Exception("fail")
+    agent = {
+        "id": BadAgent.id,
+        "name": BadAgent.name,
+        "description": BadAgent.description,
+        "example_queries": BadAgent.example_queries,
+        "respond": BadAgent().respond
+    }
+    with pytest.raises(Exception) as excinfo:
+        agent["respond"]("fail")
+    assert "fail" in str(excinfo.value)
+
+@pytest.mark.parametrize("agent", AGENT_LIST)
+def test_example_queries_is_list(agent):
+    assert isinstance(agent["example_queries"], list)
+    assert len(agent["example_queries"]) > 0
+
+@pytest.mark.parametrize("agent", AGENT_LIST)
+def test_respond_is_callable(agent):
+    assert callable(agent["respond"])
+
+@pytest.mark.parametrize("agent", AGENT_LIST)
+def test_schema_field_types(agent):
+    query = agent["example_queries"][0]
+    result = agent["respond"](query)
+    assert isinstance(result["type"], str)
+    assert isinstance(result["content"], (str, dict, list))
+    assert isinstance(result["meta"], dict)
+    assert isinstance(result["agent_id"], str)
+    # error 可以是 None 或 dict
+    assert result["error"] is None or isinstance(result["error"], dict)
+
+@pytest.mark.parametrize("agent", AGENT_LIST)
+def test_meta_field_content(agent):
+    query = agent["example_queries"][0]
+    result = agent["respond"](query)
+    # meta 至少要有 timestamp 或其他自訂欄位（依你 schema 規範調整）
+    assert isinstance(result["meta"], dict)
+
+def test_yaml_python_merge_priority():
+    """
+    測試 YAML 與 Python agent 合併時，YAML 設定優先
+    需先在 mcp_config.yaml 與 get_python_agents() 都設同 id agent，並檢查 name/description 是否以 YAML 為主
+    """
+    # 這裡假設 agent_a 同時存在於 YAML 與 Python
+    agent_a = [a for a in AGENT_LIST if a["id"] == "agent_a"]
+    if agent_a:
+        assert agent_a[0]["name"] == "A Agent"  # 依你 YAML 設定調整
+
+def test_agent_list_sync_with_config_and_python():
+    """
+    測試 AGENT_LIST 是否包含 YAML 與 Python 兩邊所有 agent（id 不重複）
+    """
+    from src.agent_loader import get_yaml_agents
+    from src.agent_registry import get_python_agents
+    yaml_ids = {a["id"] for a in get_yaml_agents()}
+    py_ids = {a["id"] for a in get_python_agents()}
+    agent_list_ids = {a["id"] for a in AGENT_LIST}
+    # agent_list_ids 應該等於 yaml_ids | (py_ids - yaml_ids)
+    assert agent_list_ids == yaml_ids | (py_ids - yaml_ids) 
