@@ -1,5 +1,5 @@
 import yaml
-from src.agent_registry import get_python_agents
+from src.agent_registry import agent_manager
 from src.agent_manager import AgentManager
 import os
 
@@ -10,7 +10,17 @@ def load_yaml_agents(yaml_path="mcp_config.yaml"):
 
 def build_agent_list():
     yaml_agents = load_yaml_agents()
-    python_agents = get_python_agents()
+    # 將 Agent 物件轉成 dict
+    python_agents = [
+        {
+            "id": a.id,
+            "name": a.name,
+            "description": a.description,
+            "example_queries": a.example_queries,
+            "respond": a.respond
+        }
+        for a in agent_manager.all_agents()
+    ]
     agent_dict = {a["id"]: a for a in python_agents}
     # YAML 為主，覆蓋 Python，但 respond function 一定用 Python 的
     for agent in yaml_agents:

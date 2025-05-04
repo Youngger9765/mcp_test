@@ -1,4 +1,4 @@
-from intent_router import analyze_intent
+from src.intent_router import analyze_intent
 
 test_cases = [
     {

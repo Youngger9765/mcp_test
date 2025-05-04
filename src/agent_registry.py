@@ -1,5 +1,8 @@
 from typing import Any, Dict, List, Optional
-import requests  # 新增
+import agents.agent_a as agent_a
+import agents.agent_b as agent_b
+import agents.junyi_tree_agent as junyi_tree_agent
+import agents.junyi_topic_agent as junyi_topic_agent
 
 class BaseAgent:
     id: str = ""
@@ -20,9 +23,10 @@ class AgentA(BaseAgent):
     ]
 
     def respond(self, query: str, **kwargs) -> Dict[str, Any]:
+        content = agent_a.respond(query)
         return {
             "type": "text",
-            "content": {"text": f"[A Agent 回應] 你問了：{query}，這是我從 A 網站取得的摘要。"},
+            "content": {"text": content},
             "meta": {"query": query},
             "agent_id": self.id,
             "error": None
@@ -37,9 +41,10 @@ class AgentB(BaseAgent):
     ]
 
     def respond(self, query: str, **kwargs) -> Dict[str, Any]:
+        content = agent_b.respond(query)
         return {
             "type": "text",
-            "content": {"text": f"[B Agent 回應] 針對：{query}，我查到 B 網站的相關資料。"},
+            "content": {"text": content},
             "meta": {"query": query},
             "agent_id": self.id,
             "error": None
@@ -51,150 +56,62 @@ class JunyiTreeAgent(BaseAgent):
     description = "適合查詢均一課程結構、單元樹狀圖等。"
     example_queries = [
         "請列出課程結構",
-        "這個主題有哪些延伸單元？"
+        "請顯示 root 下三層"
     ]
 
-    BASE_URL = "https://www.junyiacademy.org/api/v2/open"
-
-    def _fetch_sub_tree(self, topic_id="root", depth=3):
-        url = f"{self.BASE_URL}/sub-tree/{topic_id}?depth={depth}"
-        resp = requests.get(url, timeout=10)
-        resp.raise_for_status()
-        return resp.json()
-
-    def _fetch_topic_page(self, topic_id="root"):
-        url = f"{self.BASE_URL}/content/topicpage/{topic_id}"
-        resp = requests.get(url, timeout=10)
-        resp.raise_for_status()
-        return resp.json()
-
     def respond(self, query: str, **kwargs) -> Dict[str, Any]:
-        try:
-            # 根據 query 決定查詢哪一種 API
-            if "結構" in query or "樹" in query or "課程" in query:
-                # 查詢課程結構樹
-                topic_id = kwargs.get("topic_id", "root")
-                depth = kwargs.get("depth", 3)
-                data = self._fetch_sub_tree(topic_id, depth)
-                # 只取主要結構
-                tree = data.get("data", {})
-                return {
-                    "type": "tree",
-                    "content": tree,
-                    "meta": {"query": query, "topic_id": topic_id, "depth": depth},
-                    "agent_id": self.id,
-                    "error": None
-                }
-            else:
-                # 查詢單一 topic
-                topic_id = kwargs.get("topic_id", "root")
-                data = self._fetch_topic_page(topic_id)
-                # 只取重點資訊
-                children = data.get("child", [])
-                nodes = [
-                    {
-                        "title": child.get("title"),
-                        "topic_id": child.get("topic_id"),
-                        "description": child.get("description", "")
-                    }
-                    for child in children
-                ]
-                return {
-                    "type": "tree",
-                    "content": {
-                        "title": data.get("title"),
-                        "topic_id": data.get("topic_id"),
-                        "description": data.get("description"),
-                        "children": nodes
-                    },
-                    "meta": {"query": query, "topic_id": topic_id},
-                    "agent_id": self.id,
-                    "error": None
-                }
-        except Exception as e:
-            return {
-                "type": "error",
-                "content": {"text": f"查詢均一課程結構時發生錯誤：{str(e)}"},
-                "meta": {"query": query},
-                "agent_id": self.id,
-                "error": str(e)
-            }
+        topic_id = kwargs.get("topic_id", "root")
+        depth = kwargs.get("depth", 1)
+        parent_query = kwargs.get("parent_query")
+        content = junyi_tree_agent.respond(topic_id=topic_id, depth=depth)
+        meta = {"query": query, "topic_id": topic_id, "depth": depth}
+        if parent_query:
+            meta["parent_query"] = parent_query
+        error = content.get("error") if isinstance(content, dict) and "error" in content else None
+        if error is not None and not isinstance(error, dict):
+            error = {"message": error}
+        return {
+            "type": "tree",
+            "content": content,
+            "meta": meta,
+            "agent_id": self.id,
+            "error": error
+        }
 
 class JunyiTopicAgent(BaseAgent):
     id = "junyi_topic_agent"
     name = "均一主題查詢"
     description = "適合查詢均一某個主題的詳細內容。"
     example_queries = [
-        "請介紹分數的意義",
-        "這個主題有哪些重點？"
+        "請介紹分數的意義 (需給 topic_id)",
+        "查詢某主題內容 (需給 topic_id)"
     ]
 
     def respond(self, query: str, **kwargs) -> Dict[str, Any]:
+        topic_id = kwargs.get("topic_id")
+        parent_query = kwargs.get("parent_query")
+        if not topic_id:
+            return {
+                "type": "error",
+                "content": {"text": "請提供 topic_id"},
+                "meta": {"query": query},
+                "agent_id": self.id,
+                "error": {"message": "缺少 topic_id"}
+            }
+        content = junyi_topic_agent.respond(topic_id=topic_id)
+        meta = {"query": query, "topic_id": topic_id}
+        if parent_query:
+            meta["parent_query"] = parent_query
+        error = content.get("error") if isinstance(content, dict) and "error" in content else None
+        if error is not None and not isinstance(error, dict):
+            error = {"message": error}
         return {
-            "type": "text",
-            "content": {"text": f"[均一主題查詢] 你查詢的主題「{query}」重點如下：..."},
-            "meta": {"query": query},
+            "type": "tree",
+            "content": content,
+            "meta": meta,
             "agent_id": self.id,
-            "error": None
+            "error": error
         }
-
-# 工程師專用進階 agent
-class SecretAgent(BaseAgent):
-    id = "secret_agent"
-    name = "祕密 Agent"
-    description = "只有工程師知道的祕密功能。"
-    example_queries = ["祕密指令"]
-
-    def respond(self, query: str, **kwargs) -> Dict[str, Any]:
-        return {
-            "type": "text",
-            "content": {"text": f"[祕密 Agent 回應] 你問了：{query}，這是祕密功能。"},
-            "meta": {"query": query},
-            "agent_id": self.id,
-            "error": None
-        }
-
-def get_python_agents():
-    """
-    回傳所有 Python 端的 agent（for 合併用）
-    """
-    return [
-        {
-            "id": AgentA.id,
-            "name": AgentA.name,
-            "description": AgentA.description,
-            "example_queries": AgentA.example_queries,
-            "respond": AgentA().respond
-        },
-        {
-            "id": AgentB.id,
-            "name": AgentB.name,
-            "description": AgentB.description,
-            "example_queries": AgentB.example_queries,
-            "respond": AgentB().respond
-        },
-        {
-            "id": JunyiTreeAgent.id,
-            "name": JunyiTreeAgent.name,
-            "description": JunyiTreeAgent.description,
-            "example_queries": JunyiTreeAgent.example_queries,
-            "respond": JunyiTreeAgent().respond
-        },
-        {
-            "id": JunyiTopicAgent.id,
-            "name": JunyiTopicAgent.name,
-            "description": JunyiTopicAgent.description,
-            "example_queries": JunyiTopicAgent.example_queries,
-            "respond": JunyiTopicAgent().respond
-        },
-        {
-            "id": SecretAgent.id,
-            "name": SecretAgent.name,
-            "description": SecretAgent.description,
-            "example_queries": SecretAgent.example_queries,
-            "respond": SecretAgent().respond
-        }
-    ]
 
 class AgentManager:
     def __init__(self):
@@ -215,4 +132,15 @@ agent_manager.register(AgentA())
 agent_manager.register(AgentB())
 agent_manager.register(JunyiTreeAgent())
 agent_manager.register(JunyiTopicAgent())
-agent_manager.register(SecretAgent()) 
+
+def get_python_agents():
+    return [
+        {
+            "id": agent.id,
+            "name": agent.name,
+            "description": agent.description,
+            "example_queries": agent.example_queries,
+            "respond": agent.respond
+        }
+        for agent in agent_manager.all_agents()
+    ] 

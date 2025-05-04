@@ -1,4 +1,4 @@
-from agent_registry import agent_manager
+from src.agent_registry import agent_manager
 
 def check_schema(result, agent_id):
     errors = []
