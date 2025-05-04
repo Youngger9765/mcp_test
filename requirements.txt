@@ -7,3 +7,5 @@ requests
 python-dotenv
 openai >=1.0.0
 pyyaml
+pytest
+pytest-cov

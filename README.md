@@ -181,6 +181,18 @@ pip install pytest-cov
 pytest --cov=src
 ```
 
+## 執行測試
+
+一般測試：
+```bash
+make test
+```
+
+顯示 coverage（測試覆蓋率）：
+```bash
+PYTHONPATH=. pytest --cov=src tests/
+```
+
 ---
 
 **說明：**

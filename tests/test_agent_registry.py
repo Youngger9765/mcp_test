@@ -1,4 +1,6 @@
 import pytest
+import yaml
+import os
 
 # 假設 agent_registry.py 目前還是 dict-based
 from src.agent_loader import AGENT_LIST
@@ -119,4 +121,23 @@ def test_agent_list_sync_with_config_and_python():
     assert yaml_ids <= agent_list_ids
     # AGENT_LIST 必須包含所有只存在於 Python 的 agent
     missing = (py_ids - yaml_ids) - agent_list_ids
-    assert not missing, f"以下只存在於 Python 的 agent 沒有被合併進 AGENT_LIST: {missing}" 
+    assert not missing, f"以下只存在於 Python 的 agent 沒有被合併進 AGENT_LIST: {missing}"
+
+def test_yaml_only_agent_in_agent_list():
+    from src.agent_loader import get_yaml_agents
+    from src.agent_registry import get_python_agents
+    yaml_ids = {a["id"] for a in get_yaml_agents()}
+    py_ids = {a["id"] for a in get_python_agents()}
+    yaml_only_ids = yaml_ids - py_ids
+    agent_list_ids = {a["id"] for a in AGENT_LIST}
+    for agent_id in yaml_only_ids:
+        assert agent_id in agent_list_ids, f"YAML only agent {agent_id} 應該出現在 AGENT_LIST"
+
+def test_routes_agents_exist_in_agent_list():
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'mcp_config.yaml')
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    agent_ids = {a["id"] for a in AGENT_LIST}
+    for route in config.get("routes", {}).values():
+        for step in route.get("steps", []):
+            assert step["agent"] in agent_ids, f"route 裡的 agent {step['agent']} 不在 AGENT_LIST" 
