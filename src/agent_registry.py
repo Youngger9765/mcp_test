@@ -86,6 +86,50 @@ class JunyiTopicAgent(BaseAgent):
             "error": None
         }
 
+# 工程師專用進階 agent
+class SecretAgent(BaseAgent):
+    id = "secret_agent"
+    name = "祕密 Agent"
+    description = "只有工程師知道的祕密功能。"
+    example_queries = ["祕密指令"]
+
+    def respond(self, query: str, **kwargs) -> Dict[str, Any]:
+        return {
+            "type": "text",
+            "content": {"text": f"[祕密 Agent 回應] 你問了：{query}，這是祕密功能。"},
+            "meta": {"query": query},
+            "agent_id": self.id,
+            "error": None
+        }
+
+def get_python_agents():
+    """
+    回傳只有 Python 端才有的 agent（不在 YAML 裡出現）
+    """
+    return [
+        {
+            "id": JunyiTreeAgent.id,
+            "name": JunyiTreeAgent.name,
+            "description": JunyiTreeAgent.description,
+            "example_queries": JunyiTreeAgent.example_queries,
+            "respond": JunyiTreeAgent().respond
+        },
+        {
+            "id": JunyiTopicAgent.id,
+            "name": JunyiTopicAgent.name,
+            "description": JunyiTopicAgent.description,
+            "example_queries": JunyiTopicAgent.example_queries,
+            "respond": JunyiTopicAgent().respond
+        },
+        {
+            "id": SecretAgent.id,
+            "name": SecretAgent.name,
+            "description": SecretAgent.description,
+            "example_queries": SecretAgent.example_queries,
+            "respond": SecretAgent().respond
+        }
+    ]
+
 class AgentManager:
     def __init__(self):
         self.agents: Dict[str, BaseAgent] = {}
