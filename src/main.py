@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.agent_loader import AGENT_LIST
 from src.agent_selector import choose_agents_via_llm, choose_agents_from_options_via_llm
 import uvicorn
+from fastapi.staticfiles import StaticFiles
+import os
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 
@@ -14,6 +17,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 假設你的 frontend/ 在專案根目錄
+frontend_path = os.path.join(os.path.dirname(__file__), '..', 'frontend')
+app.mount("/frontend", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 @app.post("/query")
 async def ask(request: Request):
@@ -109,7 +116,7 @@ async def ask(request: Request):
 
 @app.get("/")
 def index():
-    return {"msg": "MCP Agent Server 啟動成功！請用 /query 測試"}
+    return FileResponse(os.path.join(frontend_path, "index.html"))
 
 if __name__ == "__main__":
     uvicorn.run(app, port=8000) 

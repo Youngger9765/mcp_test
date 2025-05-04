@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>智慧 Agent Playground</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div style="max-width:600px;margin:40px auto 0 auto;">
+    <label for="scenario-select"><b>選擇情境：</b></label>
+    <select id="scenario-select"></select>
+  </div>
+  <div id="chat">
+    <div id="messages"></div>
+    <div id="input-area">
+      <input id="user-input" type="text" placeholder="請輸入你的問題..." autocomplete="off" />
+      <button id="send-btn">送出</button>
+    </div>
+  </div>
+  <script src="base.js"></script>
+  <script src="scenarios.js"></script>
+</body>
+</html> 

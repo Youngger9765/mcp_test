@@ -1,0 +1,106 @@
+body {
+  font-family: "Noto Sans TC", "Inter", Arial, sans-serif;
+  background: #f7f9fb;
+  margin: 0;
+}
+#chat {
+  max-width: 600px;
+  margin: 40px auto 0 auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px #0002;
+  padding: 32px 28px 24px 28px;
+}
+.msg {
+  margin: 18px 0;
+  font-size: 1.15em;
+  line-height: 1.7;
+}
+.user {
+  color: #1976d2;
+  font-weight: 500;
+}
+.bot {
+  color: #388e3c;
+}
+.option-btn {
+  margin: 8px 8px 0 0;
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  background: #e3f2fd;
+  cursor: pointer;
+  font-size: 1em;
+  transition: background 0.2s;
+}
+.option-btn:hover {
+  background: #bbdefb;
+}
+#input-area {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+#user-input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #b0bec5;
+  font-size: 1em;
+  transition: border 0.2s;
+}
+#user-input:focus {
+  border: 1.5px solid #1976d2;
+  outline: none;
+}
+#send-btn {
+  padding: 10px 28px;
+  border: none;
+  border-radius: 6px;
+  background: #1976d2;
+  color: #fff;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+#send-btn:hover {
+  background: #1565c0;
+}
+label[for="scenario-select"] {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin-right: 8px;
+}
+#scenario-select {
+  font-size: 1.1em;
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid #b0bec5;
+  background: #fff;
+  margin-bottom: 8px;
+}
+#agent-checkboxes label {
+  font-size: 1.08em;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+#agent-checkboxes input[type="checkbox"] {
+  transform: scale(1.2);
+  margin-right: 8px;
+}
+.dot-flashing {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #1976d2;
+  color: #1976d2;
+  animation: dotFlashing 1s infinite linear alternate;
+  margin-right: 8px;
+  display: inline-block;
+}
+@keyframes dotFlashing {
+  0% { opacity: 1; }
+  50% { opacity: .3; }
+  100% { opacity: 1; }
+} 
