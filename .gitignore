@@ -17,3 +17,4 @@ env/
 .ipynb_checkpoints/
 # log
 *.log 
+*.coverage
