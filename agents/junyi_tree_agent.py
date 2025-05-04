@@ -2,7 +2,7 @@ import requests
 
 JUNYI_SUB_TREE_API = "https://www.junyiacademy.org/api/v2/open/sub-tree/{topic_id}?depth={depth}"
 
-def respond(topic_id: str = "root", depth: int = 3) -> str:
+def respond(topic_id: str = "root", depth: int = 1) -> str:
     """
     查詢均一課程樹，回傳指定 topic_id 與 depth 的課程結構摘要。
     """
