@@ -63,13 +63,14 @@
       if (loading) loading.parentNode.remove();
     }
 
-    async function sendQuery(query, userReply = null, options = null, confirmAll = false) {
+    async function sendQuery(query, userReply = null, options = null) {
       let body = { query };
-      if (userReply && options) {
-        body.user_reply = userReply;
+      if (options) {
         body.options = options;
       }
-      if (confirmAll) body.confirm_all = true;
+      if (userReply) {
+        body.user_reply = userReply;
+      }
 
       const res = await fetch(apiUrl, {
         method: "POST",
@@ -95,7 +96,7 @@
         // 如果用戶輸入「全部」或「all」等，直接查詢所有 agent
         const allWords = ["全部", "all", "都要", "全部查"];
         if (allWords.includes(text.trim().toLowerCase())) {
-          response = await sendQuery("", null, lastOptions, true);
+          response = await sendQuery("", null, lastOptions);
           lastOptions = null;
         } else {
           response = await sendQuery("", text, lastOptions);
@@ -153,22 +154,30 @@
         addMsg("請至少選擇一個 agent！", "bot");
         return;
       }
-      // 用戶選擇的 agent id
+      // 只送出被勾選的 options
       const selectedOptions = lastOptions.filter(opt => checked.includes(opt.id));
+      console.log("[submitSelectedAgents] 勾選的 agent id:", checked);
+      console.log("[submitSelectedAgents] 送出 options:", selectedOptions);
+
       showLoading();
-      // 直接查詢這些 agent
-      const response = await sendQuery("", null, selectedOptions, true);
+      const response = await sendQuery("", null, selectedOptions);
       hideLoading();
       lastOptions = null;
-      if (response.results) {
-        response.results.forEach(r => {
+      console.log("[submitSelectedAgents] 收到 response:", response);
+      if (response.type === "result") {
+        console.log("[submitSelectedAgents] response.results:", response.results);
+        response.results.forEach((r, idx) => {
+          console.log(`[submitSelectedAgents] result[${idx}]:`, r);
           addMsg(
             `<b>【${r.ref?.name || r.agent}】</b><br>${typeof r.result === "string" ? r.result : JSON.stringify(r.result, null, 2)}`,
             "bot"
           );
         });
-      } else if (response.message) {
+      } else if (response.type === "message") {
+        console.log("[submitSelectedAgents] response.message:", response.message);
         addMsg(response.message, "bot");
+      } else {
+        console.log("[submitSelectedAgents] 未知 response type:", response);
       }
     }
 

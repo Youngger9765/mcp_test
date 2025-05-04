@@ -14,7 +14,7 @@ def build_llm_prompt(query: str) -> tuple[str, str]:
         for agent in AGENT_LIST
     ])
     system_msg = (
-        "你是一個語意分析引擔，負責根據使用者輸入的問題，選出所有可能適合的 Agent（可複選，請用逗號分隔 id）。\n"
+        "你是一個語意分析引擎，負責根據使用者輸入的問題，選出所有可能適合的 Agent（可複選，請用逗號分隔 id）。\n"
         f"可選的 Agent 有：\n{agent_descriptions}\n"
         "只回傳 agent id（如：agent_a,agent_b），不要多餘解釋。"
     )
@@ -22,6 +22,9 @@ def build_llm_prompt(query: str) -> tuple[str, str]:
     return system_msg, user_msg
 
 def choose_agents_via_llm(query: str) -> list:
+    """
+    根據使用者 query，回傳所有可能的 agent id list。
+    """
     system_msg, user_msg = build_llm_prompt(query)
     response = openai.chat.completions.create(
         model="gpt-4o-mini",
@@ -33,7 +36,6 @@ def choose_agents_via_llm(query: str) -> list:
     )
     agent_ids = response.choices[0].message.content.strip().replace("，", ",").split(",")
     available_ids = [agent["id"] for agent in AGENT_LIST]
-    # 過濾合法 id
     agent_ids = [aid.strip() for aid in agent_ids if aid.strip() in available_ids]
     return agent_ids
 
@@ -55,8 +57,7 @@ def choose_agent_via_llm(query: str) -> str:
 
 def choose_agents_from_options_via_llm(options: list, user_reply: str) -> list:
     """
-    options: agent options, e.g. [{"id": "agent_a", "name": "...", "description": "..."}]
-    user_reply: 用戶針對 options 的自然語言回覆
+    根據用戶針對 options 的自然語言回覆，回傳最適合的 agent id list。
     """
     options_str = "\n".join([
         f"{o['id']}：{o['name']}，{o['description']}" for o in options
@@ -80,4 +81,13 @@ def choose_agents_from_options_via_llm(options: list, user_reply: str) -> list:
     agent_ids = response.choices[0].message.content.strip().replace("，", ",").split(",")
     available_ids = [o["id"] for o in options]
     agent_ids = [aid.strip() for aid in agent_ids if aid.strip() in available_ids]
-    return agent_ids 
+    return agent_ids
+
+def get_agent_options(agent_ids: list) -> list:
+    """
+    根據 agent_ids 回傳 options 給前端 checkbox 用。
+    """
+    return [
+        {k: a[k] for k in ("id", "name", "description")}
+        for a in AGENT_LIST if a["id"] in agent_ids
+    ] 
