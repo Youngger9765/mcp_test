@@ -1,7 +1,7 @@
 import pytest
 
 # 假設 agent_registry.py 目前還是 dict-based
-from agent_registry import AGENT_LIST
+from src.agent_registry import AGENT_LIST
 
 # 1. 測試 agent 註冊數量
 def test_agent_count():
