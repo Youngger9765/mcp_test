@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional
+import requests  # 新增
 
 class BaseAgent:
     id: str = ""
@@ -53,20 +54,71 @@ class JunyiTreeAgent(BaseAgent):
         "這個主題有哪些延伸單元？"
     ]
 
+    BASE_URL = "https://www.junyiacademy.org/api/v2/open"
+
+    def _fetch_sub_tree(self, topic_id="root", depth=3):
+        url = f"{self.BASE_URL}/sub-tree/{topic_id}?depth={depth}"
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+
+    def _fetch_topic_page(self, topic_id="root"):
+        url = f"{self.BASE_URL}/content/topicpage/{topic_id}"
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+
     def respond(self, query: str, **kwargs) -> Dict[str, Any]:
-        return {
-            "type": "tree",
-            "content": {
-                "nodes": [
-                    {"id": 1, "label": "數學", "children": [2, 3]},
-                    {"id": 2, "label": "分數", "children": []},
-                    {"id": 3, "label": "小數", "children": []}
+        try:
+            # 根據 query 決定查詢哪一種 API
+            if "結構" in query or "樹" in query or "課程" in query:
+                # 查詢課程結構樹
+                topic_id = kwargs.get("topic_id", "root")
+                depth = kwargs.get("depth", 3)
+                data = self._fetch_sub_tree(topic_id, depth)
+                # 只取主要結構
+                tree = data.get("data", {})
+                return {
+                    "type": "tree",
+                    "content": tree,
+                    "meta": {"query": query, "topic_id": topic_id, "depth": depth},
+                    "agent_id": self.id,
+                    "error": None
+                }
+            else:
+                # 查詢單一 topic
+                topic_id = kwargs.get("topic_id", "root")
+                data = self._fetch_topic_page(topic_id)
+                # 只取重點資訊
+                children = data.get("child", [])
+                nodes = [
+                    {
+                        "title": child.get("title"),
+                        "topic_id": child.get("topic_id"),
+                        "description": child.get("description", "")
+                    }
+                    for child in children
                 ]
-            },
-            "meta": {"query": query},
-            "agent_id": self.id,
-            "error": None
-        }
+                return {
+                    "type": "tree",
+                    "content": {
+                        "title": data.get("title"),
+                        "topic_id": data.get("topic_id"),
+                        "description": data.get("description"),
+                        "children": nodes
+                    },
+                    "meta": {"query": query, "topic_id": topic_id},
+                    "agent_id": self.id,
+                    "error": None
+                }
+        except Exception as e:
+            return {
+                "type": "error",
+                "content": {"text": f"查詢均一課程結構時發生錯誤：{str(e)}"},
+                "meta": {"query": query},
+                "agent_id": self.id,
+                "error": str(e)
+            }
 
 class JunyiTopicAgent(BaseAgent):
     id = "junyi_topic_agent"

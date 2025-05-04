@@ -1,7 +1,7 @@
 agents:
   - id: agent_a
     name: A Agent
-    description: 適合查詢一般網路摘要、影片剪輯教學等資訊。
+    description: 適合查詢一般網路摘要、影片剪輯教學等資訊，不包含教育平台（如均一）相關主題。
     example_queries:
       - 請幫我查一下影片剪輯教學
       - 什麼是 YouTuber？
@@ -12,10 +12,31 @@ agents:
     example_queries:
       - B 網站有什麼新消息？
 
+  - id: junyi_tree_agent
+    name: 均一課程結構樹
+    description: 適合查詢均一教育平台的課程結構、單元樹狀圖等資訊，特別是國中小學科目。
+    example_queries:
+      - 均一有哪些課程？
+      - 請顯示均一的課程結構樹
+      - 均一教育平台有哪些單元？
+
+  - id: junyi_topic_agent
+    name: 均一主題查詢
+    description: 適合查詢均一教育平台某個主題（如分數、數學、國文、理化等）的詳細內容，特別是國中小學科目。
+    example_queries:
+      - 均一的「分數」主題有什麼內容？
+      - 均一「數學」有哪些單元？
+      - 請查詢均一平台的分數教學
+      - 均一理化主題介紹
+
 routes:
   default:
     steps:
       - agent: agent_a
         input: "{{query}}"
       - agent: agent_b
+        input: "{{query}}"
+      - agent: junyi_tree_agent
+        input: "{{query}}"
+      - agent: junyi_topic_agent
         input: "{{query}}" 
