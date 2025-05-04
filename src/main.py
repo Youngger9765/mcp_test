@@ -1,18 +1,15 @@
 from fastapi import FastAPI, Request
-from mcp.server.fastmcp import FastMCP
-import uvicorn
-from agents.junyi_tree_agent import respond as junyi_tree_respond
-from agents.junyi_topic_agent import respond as junyi_topic_respond
-from agent_selector import choose_agents_via_llm, choose_agents_from_options_via_llm
-from agent_registry import AGENT_LIST
 from fastapi.middleware.cors import CORSMiddleware
+from src.agent_loader import AGENT_LIST
+from src.agent_selector import choose_agents_via_llm, choose_agents_from_options_via_llm
+import uvicorn
 
 app = FastAPI()
 
-# 加入 CORS middleware，允許所有來源跨域（開發用，正式環境建議指定 allow_origins）
+# CORS 設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 或改成 ["http://localhost:8080"] 等你的前端網址
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,9 +24,7 @@ async def ask(request: Request):
 
     # --- 1. 已有 options checklist，直接查詢 ---
     if options and len(options) > 0:
-        print("收到 options:", options)
         agent_ids = [o["id"] for o in options]
-        print("收到 agent_ids:", agent_ids)
         results = []
         for agent_id in agent_ids:
             agent_info = next((a for a in AGENT_LIST if a["id"] == agent_id), None)
@@ -41,20 +36,13 @@ async def ask(request: Request):
                 })
                 continue
             try:
-                if agent_id == "junyi_tree_agent":
-                    result = agent_info["respond"]()
-                elif agent_id == "junyi_topic_agent":
-                    result = agent_info["respond"]()
-                else:
-                    result = agent_info["respond"](query)
-                print(f"單一 agent 查詢: {agent_id}, 查詢結果: {result}")
+                result = agent_info["respond"](query)
                 results.append({
                     "agent": agent_id,
                     "ref": agent_info,
                     "result": result
                 })
             except Exception as e:
-                print(f"查詢 {agent_id} 失敗: {e}")
                 results.append({
                     "agent": agent_id,
                     "ref": agent_info,
@@ -87,13 +75,7 @@ async def ask(request: Request):
         agent = agent_ids[0]
         agent_info = next((a for a in AGENT_LIST if a["id"] == agent), None)
         try:
-            if agent == "junyi_tree_agent":
-                result = agent_info["respond"]()
-            elif agent == "junyi_topic_agent":
-                result = agent_info["respond"]()
-            else:
-                result = agent_info["respond"](query)
-            print(f"單一 agent 查詢: {agent}, 查詢結果: {result}")
+            result = agent_info["respond"](query)
             return {
                 "type": "result",
                 "message": "查詢成功 #logic:single_agent",
@@ -104,7 +86,6 @@ async def ask(request: Request):
                 }]
             }
         except Exception as e:
-            print(f"查詢 {agent} 失敗: {e}")
             return {
                 "type": "message",
                 "message": "找不到合適的 agent 回應，請再描述一次您的需求。 #logic:single_agent_error"
@@ -125,6 +106,10 @@ async def ask(request: Request):
             "type": "message",
             "message": "找不到合適的 agent，請再描述一次您的需求。 #logic:multi_options_empty"
         }
+
+@app.get("/")
+def index():
+    return {"msg": "MCP Agent Server 啟動成功！請用 /query 測試"}
 
 if __name__ == "__main__":
     uvicorn.run(app, port=8000) 
