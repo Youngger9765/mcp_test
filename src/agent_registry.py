@@ -3,6 +3,7 @@ import agents.agent_a as agent_a
 import agents.agent_b as agent_b
 import agents.junyi_tree_agent as junyi_tree_agent
 import agents.junyi_topic_agent as junyi_topic_agent
+from src.intent_router import analyze_intent_by_context
 
 class BaseAgent:
     id: str = ""
@@ -50,6 +51,19 @@ class AgentB(BaseAgent):
             "error": None
         }
 
+def collect_topic_ids(tree):
+    ids = []
+    if isinstance(tree, dict):
+        if "id" in tree:
+            ids.append(tree["id"])
+        if "children" in tree:
+            for child in tree["children"]:
+                ids.extend(collect_topic_ids(child))
+    elif isinstance(tree, list):
+        for node in tree:
+            ids.extend(collect_topic_ids(node))
+    return ids
+
 class JunyiTreeAgent(BaseAgent):
     id = "junyi_tree_agent"
     name = "均一課程結構樹"
@@ -67,6 +81,7 @@ class JunyiTreeAgent(BaseAgent):
         meta = {"query": query, "topic_id": topic_id, "depth": depth}
         if parent_query:
             meta["parent_query"] = parent_query
+        meta["topic_ids"] = collect_topic_ids(content)
         error = content.get("error") if isinstance(content, dict) and "error" in content else None
         if error is not None and not isinstance(error, dict):
             error = {"message": error}
@@ -143,4 +158,20 @@ def get_python_agents():
             "respond": agent.respond
         }
         for agent in agent_manager.all_agents()
-    ] 
+    ]
+
+def call_agent_by_llm(user_query, last_agent_id, last_meta, topic_id):
+    print("=== [DEBUG] call_agent_by_llm ===")
+    print("user_query:", user_query)
+    print("last_agent_id:", last_agent_id)
+    print("last_meta:", last_meta)
+    # ...原本 code...
+    # 在這裡呼叫 intent 分析
+    agent_list = [
+        {"id": a.id, "name": a.name, "description": a.description, "example_queries": getattr(a, "example_queries", [])}
+        for a in agent_manager.all_agents()
+    ]
+    print("agent_list:", [a["id"] for a in agent_list])
+    intent_result = analyze_intent_by_context(user_query, last_agent_id, last_meta, agent_list)
+    print("=== [DEBUG] analyze_intent_by_context 回傳 ===", intent_result)
+    # ...後續 code... 

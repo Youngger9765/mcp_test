@@ -1,5 +1,6 @@
 const apiUrl = "http://localhost:8000/query";
 let lastOptions = null;
+let lastMeta = null;
 
 // 這裡不放 scenarios，僅提供 setPrompt 供外部呼叫
 function setPrompt(text) {
@@ -27,6 +28,8 @@ async function sendQuery(query, userReply = null, options = null) {
   let body = { query };
   if (options) body.options = options;
   if (userReply) body.user_reply = userReply;
+  if (lastMeta) body.last_meta = lastMeta;
+  console.log("[frontend] sendQuery body:", body);
   const res = await fetch(apiUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -63,13 +66,29 @@ async function handleUserInput() {
   hideLoading();
 
   if (response.results) {
+    const firstResult = response.results[0]?.result;
+    if (firstResult && firstResult.agent_id === "junyi_tree_agent") {
+      lastMeta = { ...(firstResult.meta || {}), ...firstResult };
+    }
     response.results.forEach(r => {
+      // 取 agent_id 當標題，或 type
+      const title = r.agent_id || r.type || "結果";
+      // 顯示主要內容
+      let content = "";
+      if (r.content) {
+        content = JSON.stringify(r.content, null, 2);
+      } else if (r.result) {
+        content = typeof r.result === "string" ? r.result : JSON.stringify(r.result, null, 2);
+      } else {
+        content = JSON.stringify(r, null, 2);
+      }
       addMsg(
-        `<b>【${r.ref?.name || r.agent}】</b><br>${typeof r.result === "string" ? r.result : JSON.stringify(r.result, null, 2)}`,
+        `<b>【${title}】</b><br>${content}`,
         "bot"
       );
     });
-  } else if (response.options) {
+  }
+  if (response.options) {
     let checkboxes = response.options.map((opt, idx) =>
       `<label style="display:block;margin:6px 0;">
         <input type="checkbox" class="agent-checkbox" value="${opt.id}" ${idx===0?'checked':''}>
@@ -85,9 +104,11 @@ async function handleUserInput() {
     addMsg(response.message, "bot");
     addMsg(checkboxes, "bot");
     lastOptions = response.options;
-  } else if (response.message) {
+  }
+  if (response.message && !response.options) {
     addMsg(response.message, "bot");
   }
+  if (response.meta) lastMeta = response.meta;
 
   input.disabled = false;
   document.getElementById("send-btn").disabled = false;
@@ -110,14 +131,30 @@ window.submitSelectedAgents = async function() {
   hideLoading();
   lastOptions = null;
   if (response.type === "result") {
+    const firstResult = response.results[0]?.result;
+    if (firstResult) {
+      lastMeta = { ...(firstResult.meta || {}), ...firstResult };
+    }
     response.results.forEach((r, idx) => {
+      // 取 agent_id 當標題，或 type
+      const title = r.agent_id || r.type || "結果";
+      // 顯示主要內容
+      let content = "";
+      if (r.content) {
+        content = JSON.stringify(r.content, null, 2);
+      } else if (r.result) {
+        content = typeof r.result === "string" ? r.result : JSON.stringify(r.result, null, 2);
+      } else {
+        content = JSON.stringify(r, null, 2);
+      }
       addMsg(
-        `<b>【${r.ref?.name || r.agent}】</b><br>${typeof r.result === "string" ? r.result : JSON.stringify(r.result, null, 2)}`,
+        `<b>【${title}】</b><br>${content}`,
         "bot"
       );
     });
   } else if (response.type === "message") {
     addMsg(response.message, "bot");
+    if (response.meta) lastMeta = response.meta;
   }
 }
 

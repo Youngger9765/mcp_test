@@ -2,6 +2,9 @@ from mcp.server.fastmcp import FastMCP
 from flask import Flask, request, jsonify
 import requests
 from agents.junyi_tree_agent import respond as junyi_respond
+from src.agent_manager import call_agent_by_llm
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 app = Flask(__name__)
 
@@ -32,6 +35,16 @@ def junyi_sub_tree():
 @mcp.tool()
 def junyi_agent(topic_id: str = "root", depth: int = 3):
     return junyi_respond(topic_id, depth)
+
+@app.post("/api/agent_call")
+async def agent_call(request: Request):
+    data = await request.json()
+    user_query = data.get("user_query")
+    topic_id = data.get("topic_id")
+    last_agent_id = data.get("last_agent_id")
+    last_meta = data.get("last_meta")
+    result = call_agent_by_llm(user_query, last_agent_id, last_meta, topic_id)
+    return JSONResponse(content=result)
 
 if __name__ == "__main__":
     print("準備啟動 MCP 服務")

@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from src.agent_loader import AGENT_LIST
 from src.agent_selector import choose_agents_via_llm, choose_agents_from_options_via_llm
+from src.agent_manager import call_agent_by_llm
 import uvicorn
 from fastapi.staticfiles import StaticFiles
 import os
@@ -25,9 +26,24 @@ app.mount("/frontend", StaticFiles(directory=frontend_path, html=True), name="fr
 @app.post("/query")
 async def ask(request: Request):
     body = await request.json()
+    print("=== [DEBUG] /query 收到 body ===", body)
     query = body.get("query", "")
     options = body.get("options", None)
     user_reply = body.get("user_reply", None)
+    last_agent_id = body.get("last_agent_id")
+    last_meta = body.get("last_meta")
+    topic_id = body.get("topic_id")
+
+    # --- 0. 多輪 context-aware router ---
+    if last_agent_id or last_meta or topic_id:
+        print("=== [DEBUG] /query 進入 context-aware router ===")
+        print("query:", query)
+        print("last_agent_id:", last_agent_id)
+        print("last_meta:", last_meta)
+        print("topic_id:", topic_id)
+        result = call_agent_by_llm(query, last_agent_id, last_meta, topic_id)
+        print("=== [DEBUG] /query 回傳 result ===", result)
+        return result
 
     # --- 1. 已有 options checklist，直接查詢 ---
     if options and len(options) > 0:
