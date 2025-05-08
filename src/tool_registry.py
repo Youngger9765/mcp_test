@@ -4,9 +4,7 @@
 """
 
 from typing import List, Dict, Callable
-
-# 手動整理 server.py 內所有 @mcp.tool 註冊的 function
-from server import add, get_junyi_tree, get_junyi_topic, get_junyi_topic_by_title
+from src.tools import add, get_junyi_tree, get_junyi_topic, get_junyi_topic_by_title, agent_a_tool, agent_b_tool
 
 
 def get_tool_list() -> List[Dict]:
@@ -51,6 +49,24 @@ def get_tool_list() -> List[Dict]:
                 {"name": "title", "type": "str"}
             ],
             "function": get_junyi_topic_by_title
+        },
+        {
+            "id": "agent_a_tool",
+            "name": "A Agent 工具",
+            "description": agent_a_tool.__doc__ or "查詢 A 網站摘要，電影、影片剪輯 相關",
+            "parameters": [
+                {"name": "input_text", "type": "str"}
+            ],
+            "function": agent_a_tool
+        },
+        {
+            "id": "agent_b_tool",
+            "name": "B Agent 工具",
+            "description": agent_b_tool.__doc__ or "查詢 B 網站資料，資安相關",
+            "parameters": [
+                {"name": "input_text", "type": "str"}
+            ],
+            "function": agent_b_tool
         },
     ]
     return tool_list 

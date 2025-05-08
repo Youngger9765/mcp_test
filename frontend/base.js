@@ -1,4 +1,4 @@
-const apiUrl = "http://localhost:8000/query";
+const apiUrl = "http://localhost:8000/orchestrate";
 let lastOptions = null;
 let lastMeta = null;
 
@@ -24,11 +24,8 @@ function hideLoading() {
   if (loading) loading.parentNode.remove();
 }
 
-async function sendQuery(query, userReply = null, options = null) {
-  let body = { query };
-  if (options) body.options = options;
-  if (userReply) body.user_reply = userReply;
-  if (lastMeta) body.last_meta = lastMeta;
+async function sendQuery(query) {
+  const body = { prompt: query };
   console.log("[frontend] sendQuery body:", body);
   const res = await fetch(apiUrl, {
     method: "POST",
@@ -53,10 +50,10 @@ async function handleUserInput() {
   if (lastOptions) {
     const allWords = ["全部", "all", "都要", "全部查"];
     if (allWords.includes(text.trim().toLowerCase())) {
-      response = await sendQuery("", null, lastOptions);
+      response = await sendQuery("");
       lastOptions = null;
     } else {
-      response = await sendQuery("", text, lastOptions);
+      response = await sendQuery(text);
       lastOptions = null;
     }
   } else {
@@ -71,12 +68,16 @@ async function handleUserInput() {
       lastMeta = { ...(firstResult.meta || {}), ...firstResult };
     }
     response.results.forEach(r => {
-      // 取 agent_id 當標題，或 type
-      const title = r.agent_id || r.type || "結果";
+      // 取 agent_name 當標題，否則 agent_id/type/結果
+      const title = r.agent_name || r.agent_id || r.type || "結果";
       // 顯示主要內容
       let content = "";
       if (r.content) {
-        content = JSON.stringify(r.content, null, 2);
+        if (typeof r.content === "object" && r.content.text) {
+          content = r.content.text;
+        } else {
+          content = JSON.stringify(r.content, null, 2);
+        }
       } else if (r.result) {
         content = typeof r.result === "string" ? r.result : JSON.stringify(r.result, null, 2);
       } else {
@@ -127,7 +128,7 @@ window.submitSelectedAgents = async function() {
   }
   const selectedOptions = lastOptions.filter(opt => checked.includes(opt.id));
   showLoading();
-  const response = await sendQuery("", null, selectedOptions);
+  const response = await sendQuery("");
   hideLoading();
   lastOptions = null;
   if (response.type === "result") {
@@ -136,12 +137,16 @@ window.submitSelectedAgents = async function() {
       lastMeta = { ...(firstResult.meta || {}), ...firstResult };
     }
     response.results.forEach((r, idx) => {
-      // 取 agent_id 當標題，或 type
-      const title = r.agent_id || r.type || "結果";
+      // 取 agent_name 當標題，否則 agent_id/type/結果
+      const title = r.agent_name || r.agent_id || r.type || "結果";
       // 顯示主要內容
       let content = "";
       if (r.content) {
-        content = JSON.stringify(r.content, null, 2);
+        if (typeof r.content === "object" && r.content.text) {
+          content = r.content.text;
+        } else {
+          content = JSON.stringify(r.content, null, 2);
+        }
       } else if (r.result) {
         content = typeof r.result === "string" ? r.result : JSON.stringify(r.result, null, 2);
       } else {

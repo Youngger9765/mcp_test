@@ -9,6 +9,7 @@ from src.tool_registry import get_tool_list
 from typing import Any, Dict
 
 def orchestrate(prompt: str) -> Dict[str, Any]:
+    print("=== [DEBUG] 開始調度 orchestrate ===")
     tools = get_tool_list()
     # 整理工具清單給 LLM
     tool_brief = [
@@ -27,7 +28,9 @@ def orchestrate(prompt: str) -> Dict[str, Any]:
         "工具清單如下：\n"
         f"{json.dumps(tool_brief, ensure_ascii=False, indent=2)}"
     )
+    print("=== [DEBUG] system_prompt ===", system_prompt)
     user_prompt = f"使用者輸入：{prompt}"
+    print("=== [DEBUG] user_prompt ===", user_prompt)
 
     # 呼叫 OpenAI LLM
     try:
@@ -40,6 +43,7 @@ def orchestrate(prompt: str) -> Dict[str, Any]:
             temperature=0
         )
         llm_reply = response.choices[0].message.content
+        print("=== [DEBUG] LLM 回傳 ===", llm_reply)
     except Exception as e:
         return {"type": "error", "message": f"OpenAI API 錯誤: {e}"}
 
@@ -49,13 +53,15 @@ def orchestrate(prompt: str) -> Dict[str, Any]:
         params = parsed.get("parameters", {})
         tool = next((t for t in tools if t["id"] == tool_id), None)
         if tool:
-            result = tool["function"](**params)
-            return {
+            output = tool["function"](**params)
+            result = {
                 "type": "result",
                 "tool": tool_id,
                 "input": params,
-                "output": result
+                "results": [output]
             }
+            print("=== [DEBUG] result ===", result)
+            return result
         else:
             return {"type": "error", "message": f"找不到工具 {tool_id}"}
     except Exception as e:
