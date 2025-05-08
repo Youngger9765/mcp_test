@@ -16,27 +16,6 @@ def log_call(func):
         return result
     return wrapper
 
-class Orchestrator:
-    def __init__(self, registry, strategy=None):
-        self.registry = registry
-        self.strategy = strategy
-
-    def keyword_strategy(self, prompt, context=None):
-        if "資安" in prompt:
-            return "agent_b", {"input_text": prompt}
-        elif "電影" in prompt or "影片" in prompt:
-            return "agent_a", {"input_text": prompt}
-        return None, {}
-
-    def route(self, prompt, context=None):
-        # 先用 plug-in strategy
-        if self.strategy:
-            agent_id, params = self.strategy(prompt, context)
-            if agent_id:
-                return agent_id, params
-        # fallback 到 keyword_strategy
-        return self.keyword_strategy(prompt, context)
-
 def orchestrate(prompt: str) -> Dict[str, Any]:
     print("=== [DEBUG] 開始調度 orchestrate ===")
     tools = get_tool_list()
