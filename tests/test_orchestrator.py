@@ -108,5 +108,49 @@ def test_orchestrator_logging(monkeypatch, capsys):
     # 檢查 log 是否有輸出
     captured = capsys.readouterr()
     assert "[LOG] Called dummy_strategy" in captured.out
+
+def test_orchestrator_session_context_management():
+    from src.agent_registry import AgentRegistry
+    from src.orchestrator import Orchestrator
+
+    registry = AgentRegistry()
+    orchestrator = Orchestrator(registry)
+
+    # 模擬 session/context 儲存
+    session_store = {}
+
+    def get_context(session_id):
+        return session_store.get(session_id, {"history": []})
+
+    def save_context(session_id, context):
+        session_store[session_id] = context
+
+    # 用戶A第一次查詢
+    session_id_a = "userA"
+    prompt_a1 = "我想查電影"
+    context_a = get_context(session_id_a)
+    agent_id, params = orchestrator.route(prompt_a1, context=context_a)
+    assert agent_id == "agent_a"
+    # 更新 context
+    context_a["history"].append({"user": prompt_a1, "agent": agent_id})
+    save_context(session_id_a, context_a)
+
+    # 用戶B第一次查詢
+    session_id_b = "userB"
+    prompt_b1 = "我想查資安"
+    context_b = get_context(session_id_b)
+    agent_id, params = orchestrator.route(prompt_b1, context=context_b)
+    assert agent_id == "agent_b"
+    context_b["history"].append({"user": prompt_b1, "agent": agent_id})
+    save_context(session_id_b, context_b)
+
+    # 用戶A第二次查詢，context/history 不受 B 影響
+    prompt_a2 = "再查一次電影"
+    context_a = get_context(session_id_a)
+    agent_id, params = orchestrator.route(prompt_a2, context=context_a)
+    assert agent_id == "agent_a"
+    assert len(context_a["history"]) == 1
+    assert context_a["history"][0]["user"] == "我想查電影"
+
 if __name__ == "__main__":
     test_all() 
