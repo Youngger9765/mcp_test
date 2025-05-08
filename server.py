@@ -1,6 +1,6 @@
 # server.py
 from mcp.server.fastmcp import FastMCP
-from src.orchestrator import orchestrate
+from src.orchestrator import orchestrate, multi_turn_orchestrate, multi_turn_step
 import inspect
 import openai
 from fastapi import FastAPI, Request, Body
@@ -11,10 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 from src.tool_registry import get_tool_list
-
-from agents.junyi_tree_agent import respond as get_junyi_tree_respond
-from agents.junyi_topic_agent import respond as get_junyi_topic_respond
-from agents.agent_openai import query as openai_query_llm
 
 # Create an MCP server
 mcp = FastMCP("mcp_local")
@@ -110,13 +106,29 @@ async def ask(request: Request):
     result = orchestrate(query)
     return result
 
+@app.post("/multi_turn_orchestrate")
+async def multi_turn_orchestrate_api(request: Request):
+    data = await request.json()
+    prompt = data.get("prompt", "")
+    max_turns = data.get("max_turns", 5)
+    result = multi_turn_orchestrate(prompt, max_turns=max_turns)
+    return JSONResponse(content=result)
+
+@app.post("/multi_turn_step")
+async def multi_turn_step_api(request: Request):
+    data = await request.json()
+    history = data.get("history", [])
+    query = data.get("query", "")
+    result = multi_turn_step(history, query)
+    return JSONResponse(content=result)
+
 @app.get("/")
 def index():
     return FileResponse(os.path.join(frontend_path, "index.html"))
 
 # Add an addition tool
 @mcp.tool()
-def add(a: int, b: int):
+def mcp_tool_add(a: int, b: int):
     """Add two numbers"""
     return add(a, b)
 
@@ -129,17 +141,17 @@ def get_greeting(name: str):
 
 # 均一樹 as tool
 @mcp.tool()
-def get_junyi_tree(topic_id: str):
+def mcp_tool_get_junyi_tree(topic_id: str):
     """Get the tree of均一"""
-    return get_junyi_tree(topic_id)
+    return get_junyi_tree(topic_id, depth=1)
 
 @mcp.tool()
-def get_junyi_topic(topic_id: str):
+def mcp_tool_get_junyi_topic(topic_id: str):
     """Get the topic of均一"""
-    return get_junyi_topic(topic_id)
+    return get_junyi_topic(topic_id, depth=1)
 
 @mcp.tool()
-def get_junyi_topic_by_title(title: str):
+def mcp_tool_get_junyi_topic_by_title(title: str):
     """
         Get the topic of均一 by title
         1. 先查詢 topic_id by get_junyi_tree
@@ -258,38 +270,6 @@ def get_junyi_topic_by_title(title: str):
 #             "type": "message",
 #             "message": "找不到合適的 agent，請再描述一次您的需求。 #logic:multi_options_empty"
 #         }
-
-# === 直接 expose tools.py function 的 API ===
-@app.post("/tools/add")
-async def tool_add(data: dict = Body(...)):
-    a = data.get("a")
-    b = data.get("b")
-    return add(a, b)
-
-@app.post("/tools/get_junyi_tree")
-async def tool_get_junyi_tree(data: dict = Body(...)):
-    topic_id = data.get("topic_id", "root")
-    return get_junyi_tree(topic_id)
-
-@app.post("/tools/get_junyi_topic")
-async def tool_get_junyi_topic(data: dict = Body(...)):
-    topic_id = data.get("topic_id", "root")
-    return get_junyi_topic(topic_id)
-
-@app.post("/tools/get_junyi_topic_by_title")
-async def tool_get_junyi_topic_by_title(data: dict = Body(...)):
-    title = data.get("title")
-    return get_junyi_topic_by_title(title)
-
-@app.post("/tools/agent_a_tool")
-async def tool_agent_a_tool(data: dict = Body(...)):
-    input_text = data.get("input_text")
-    return agent_a_tool(input_text)
-
-@app.post("/tools/agent_b_tool")
-async def tool_agent_b_tool(data: dict = Body(...)):
-    input_text = data.get("input_text")
-    return agent_b_tool(input_text)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

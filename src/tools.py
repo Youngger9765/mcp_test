@@ -9,21 +9,21 @@ def add(a: int, b: int):
     """Add two numbers"""
     return 9999
 
-def get_junyi_tree(topic_id: str):
-    """Get the tree of均一"""
-    content = get_junyi_tree_respond(topic_id="root", depth=1)
+def get_junyi_tree(topic_id: str, depth: int = 1):
+    """Get the tree of均一（預設只抓 1 層）"""
+    content = get_junyi_tree_respond(topic_id=topic_id, depth=depth)
     return {
         "type": "tree",
         "content": content,
-        "meta": {"topic_id": topic_id},
+        "meta": {"topic_id": topic_id, "depth": depth},
         "agent_id": "get_junyi_tree",
         "agent_name": "均一樹查詢",
         "error": None
     }
 
-def get_junyi_topic(topic_id: str):
+def get_junyi_topic(topic_id: str, depth: int = 1):
     """Get the topic of均一"""
-    content = get_junyi_topic_respond(topic_id="root")
+    content = get_junyi_topic_respond(topic_id=topic_id)
     return {
         "type": "topic",
         "content": content,

@@ -1,4 +1,4 @@
-const apiUrl = "http://localhost:8000/orchestrate";
+const apiUrl = "http://localhost:8000/multi_turn_orchestrate";
 let lastOptions = null;
 let lastMeta = null;
 
@@ -25,7 +25,7 @@ function hideLoading() {
 }
 
 async function sendQuery(query) {
-  const body = { prompt: query };
+  const body = { prompt: query, max_turns: 5 };
   console.log("[frontend] sendQuery body:", body);
   const res = await fetch(apiUrl, {
     method: "POST",
@@ -33,6 +33,28 @@ async function sendQuery(query) {
     body: JSON.stringify(body)
   });
   return await res.json();
+}
+
+// 新增：多輪推理結果摘要函式
+function summarizeResult(result) {
+  if (typeof result !== "object" || result === null) return result;
+  // 均一主題查詢類型
+  if (result.content && result.content.data) {
+    const data = result.content.data;
+    let summary = "";
+    if (data.title) summary += `<b>主題：</b>${data.title}<br>`;
+    if (data.intro) summary += `<b>簡介：</b>${data.intro}<br>`;
+    if (data.child && Array.isArray(data.child)) {
+      summary += `<b>子主題數：</b>${data.child.length}<br>`;
+      summary += data.child.slice(0, 3).map(c => c.title).join("、");
+      if (data.child.length > 3) summary += " ...";
+      summary += "<br>";
+    }
+    if (data.extended_slug) summary += `<b>路徑：</b>${data.extended_slug}<br>`;
+    return summary;
+  }
+  // fallback: 只顯示前 300 字
+  return `<pre>${JSON.stringify(result, null, 2).slice(0, 300)}...</pre>`;
 }
 
 async function handleUserInput() {
@@ -44,73 +66,36 @@ async function handleUserInput() {
   input.disabled = true;
   document.getElementById("send-btn").disabled = true;
 
-  showLoading();
-
-  let response;
-  if (lastOptions) {
-    const allWords = ["全部", "all", "都要", "全部查"];
-    if (allWords.includes(text.trim().toLowerCase())) {
-      response = await sendQuery("");
-      lastOptions = null;
-    } else {
-      response = await sendQuery(text);
-      lastOptions = null;
-    }
-  } else {
-    response = await sendQuery(text);
-  }
-
-  hideLoading();
-
-  if (response.results) {
-    const firstResult = response.results[0]?.result;
-    if (firstResult && firstResult.agent_id === "junyi_tree_agent") {
-      lastMeta = { ...(firstResult.meta || {}), ...firstResult };
-    }
-    response.results.forEach(r => {
-      // 取 agent_name 當標題，否則 agent_id/type/結果
-      const title = r.agent_name || r.agent_id || r.type || "結果";
-      // 顯示主要內容
-      let content = "";
-      if (r.content) {
-        if (typeof r.content === "object" && r.content.text) {
-          content = r.content.text;
-        } else {
-          content = JSON.stringify(r.content, null, 2);
-        }
-      } else if (r.result) {
-        content = typeof r.result === "string" ? r.result : JSON.stringify(r.result, null, 2);
-      } else {
-        content = JSON.stringify(r, null, 2);
-      }
+  let history = [];
+  let currentQuery = text;
+  let finished = false;
+  while (!finished) {
+    showLoading();
+    const res = await fetch("http://localhost:8000/multi_turn_step", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ history, query: currentQuery })
+    });
+    const result = await res.json();
+    hideLoading();
+    if (result.action === "call_tool" && result.step) {
       addMsg(
-        `<b>【${title}】</b><br>${content}`,
+        `<b>【${result.step.tool_id}】</b><br>` +
+        `<b>參數：</b>${JSON.stringify(result.step.parameters)}<br>` +
+        `<b>結果：</b>${summarizeResult(result.step.result)}` +
+        (result.step.reason ? `<div style='color:#888;margin:4px 0 8px 0;'><b>規劃理由：</b>${result.step.reason}</div>` : ""),
         "bot"
       );
-    });
+      history.push(result.step);
+      currentQuery = `剛剛查到：${JSON.stringify(result.step.result).slice(0, 200)}...，請問還需要查什麼嗎？`;
+    } else if (result.action === "finish") {
+      addMsg(`<b>總結：</b>${result.reason}`, "bot");
+      finished = true;
+    } else {
+      addMsg(`<b>錯誤：</b>${result.message || '未知錯誤'}`, "bot");
+      finished = true;
+    }
   }
-  if (response.options) {
-    let checkboxes = response.options.map((opt, idx) =>
-      `<label style="display:block;margin:6px 0;">
-        <input type="checkbox" class="agent-checkbox" value="${opt.id}" ${idx===0?'checked':''}>
-        <b>${opt.name}</b> <small>(${opt.description})</small>
-      </label>`
-    ).join("");
-    checkboxes = `
-      <div id="agent-checkboxes">${checkboxes}</div>
-      <button class="option-btn" onclick="selectAllAgents(true)">全選</button>
-      <button class="option-btn" onclick="selectAllAgents(false)">取消全選</button>
-      <button class="option-btn" onclick="submitSelectedAgents()">查詢</button>
-    `;
-    addMsg(response.message, "bot");
-    addMsg(checkboxes, "bot");
-    lastOptions = response.options;
-  }
-  if (response.message && !response.options) {
-    addMsg(response.message, "bot");
-  }
-  if (response.meta) lastMeta = response.meta;
-
   input.disabled = false;
   document.getElementById("send-btn").disabled = false;
   input.focus();

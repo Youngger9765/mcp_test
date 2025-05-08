@@ -3,7 +3,7 @@ const scenarios = [
   {
     id: "default",
     name: "一般查詢",
-    prompt: "請幫我查一下分數教學"
+    prompt: "請幫我查一下分數的加減法"
   },
   {
     id: "secret",
