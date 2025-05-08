@@ -7,9 +7,9 @@ function setPrompt(text) {
   document.getElementById("user-input").value = text;
 }
 
-function addMsg(text, sender = "bot") {
+function addMsg(text, sender = "bot", extraClass = "") {
   const msgDiv = document.createElement("div");
-  msgDiv.className = "msg " + sender;
+  msgDiv.className = "msg " + sender + (extraClass ? " " + extraClass : "");
   msgDiv.innerHTML = text;
   document.getElementById("messages").appendChild(msgDiv);
   document.getElementById("chat").scrollTop = 99999;
@@ -37,8 +37,9 @@ async function sendQuery(query) {
 
 // 新增：多輪推理結果摘要函式
 function summarizeResult(result) {
-  if (typeof result !== "object" || result === null) return result;
-  // 均一主題查詢類型
+  if (!result) return "<i>（無內容）</i>";
+  if (typeof result !== "object") return result;
+  if (result.content && result.content.text) return result.content.text;
   if (result.content && result.content.data) {
     const data = result.content.data;
     let summary = "";
@@ -66,7 +67,43 @@ async function handleUserInput() {
   input.disabled = true;
   document.getElementById("send-btn").disabled = true;
 
+  // 1. 先呼叫 /orchestrate 顯示 agent 回應
+  showLoading();
+  let orchestrateRes = await fetch("http://localhost:8000/orchestrate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: text })
+  });
+  orchestrateRes = await orchestrateRes.json();
+  hideLoading();
+  if (orchestrateRes.type === "result" && orchestrateRes.results && orchestrateRes.results.length > 0) {
+    const r = orchestrateRes.results[0];
+    addMsg(
+      `<div class='card agent-card'>
+        <div class='agent-title'>【${r.agent_name || r.tool || r.agent_id || r.type || "Agent 回應"}】</div>
+        <div class='agent-param'><b>參數：</b>${JSON.stringify(orchestrateRes.input)}</div>
+        <div class='agent-content'><b>回應：</b>${summarizeResult(r)}</div>
+      </div>`,
+      "bot"
+    );
+  } else if (orchestrateRes.type === "error") {
+    addMsg(`<b>錯誤：</b>${orchestrateRes.message || '未知錯誤'}`, "bot", "error-msg");
+    input.disabled = false;
+    document.getElementById("send-btn").disabled = false;
+    input.focus();
+    return;
+  }
+
+  // 2. 再進行 multi_turn_step，顯示每一輪歷程
   let history = [];
+  if (orchestrateRes.type === "result" && orchestrateRes.tool && orchestrateRes.input) {
+    history.push({
+      tool_id: orchestrateRes.tool,
+      parameters: orchestrateRes.input,
+      result: orchestrateRes.results[0],
+      reason: "初次查詢"
+    });
+  }
   let currentQuery = text;
   let finished = false;
   while (!finished) {
@@ -80,19 +117,21 @@ async function handleUserInput() {
     hideLoading();
     if (result.action === "call_tool" && result.step) {
       addMsg(
-        `<b>【${result.step.tool_id}】</b><br>` +
-        `<b>參數：</b>${JSON.stringify(result.step.parameters)}<br>` +
-        `<b>結果：</b>${summarizeResult(result.step.result)}` +
-        (result.step.reason ? `<div style='color:#888;margin:4px 0 8px 0;'><b>規劃理由：</b>${result.step.reason}</div>` : ""),
+        `<div class='card agent-card'>
+          <div class='agent-title'>【${result.step.agent_name || result.step.tool_id || result.step.agent_id || result.step.type || "Agent"}】</div>
+          <div class='agent-param'><b>參數：</b>${JSON.stringify(result.step.parameters)}</div>
+          <div class='agent-content'><b>回應：</b>${summarizeResult(result.step.result)}</div>
+          ${result.step.reason ? `<div class='llm-reason'><b>規劃理由：</b>${result.step.reason}</div>` : ""}
+        </div>`,
         "bot"
       );
       history.push(result.step);
       currentQuery = `剛剛查到：${JSON.stringify(result.step.result).slice(0, 200)}...，請問還需要查什麼嗎？`;
     } else if (result.action === "finish") {
-      addMsg(`<b>總結：</b>${result.reason}`, "bot");
+      addMsg(`<div class='summary-info'><b>總結：</b>${result.reason}</div>`, "bot", "summary-msg");
       finished = true;
     } else {
-      addMsg(`<b>錯誤：</b>${result.message || '未知錯誤'}`, "bot");
+      addMsg(`<b>錯誤：</b>${result.message || '未知錯誤'}`, "bot", "error-msg");
       finished = true;
     }
   }

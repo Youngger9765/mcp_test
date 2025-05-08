@@ -167,6 +167,7 @@ def multi_turn_step(history: List[Dict[str, Any]], query: str, max_turns: int = 
             output = tool["function"](**params)
             step = {
                 "tool_id": tool_id,
+                "agent_name": tool.get("name", ""),
                 "parameters": copy.deepcopy(params),
                 "result": output,
                 "reason": plan.get("reason", "")
