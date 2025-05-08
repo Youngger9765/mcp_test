@@ -22,6 +22,8 @@ test-verbose:
 	PYTHONPATH=. pytest -v 
 
 run:
+	@echo "關閉殘留的 serve 進程..."
+	@pkill -f serve || true
 	@echo "啟動後端 (API)..."
 	@python server.py &
 	@echo "啟動前端 (http://localhost:5173)..."
