@@ -1,4 +1,4 @@
-.PHONY: test test-cov install
+.PHONY: test test-cov install run
 
 # 安裝測試相關套件
 install:
@@ -20,3 +20,10 @@ test-cov:
 # 顯示詳細測試過程
 test-verbose:
 	PYTHONPATH=. pytest -v 
+
+run:
+	@echo "啟動後端 (API)..."
+	@python server.py &
+	@echo "啟動前端 (http://localhost:5173)..."
+	@cd frontend && serve -l 5173 &
+	@wait 
