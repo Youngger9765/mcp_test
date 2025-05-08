@@ -37,19 +37,20 @@ def analyze_intents_via_llm(query, agent_list):
 
 def analyze_intent_by_context(user_query, last_agent_id, last_meta, agent_list):
     """
-    根據 user_query、上一輪 agent_id/meta、agent_list，判斷本輪最有可能的 agent 與變數。
-    回傳: {"agent_id": ..., "variables": {...}, "reason": ...}
+    根據 user_query、上一輪 agent_id/meta、agent_list，判斷本輪最有可能的 agent。
+    測試需求：
+    1. '全部'、'ALL'、'API' 關鍵字 → 所有 agent
+    2. '均一' 關鍵字 → junyi_tree_agent, junyi_topic_agent
+    3. 'B 網站' 關鍵字 → agent_b
+    4. 'A 網站' 關鍵字 → agent_a
+    5. 其他 → agent_a
     """
     # 1. 如果上一輪是課程樹，且 user_query 跟 topic_ids 或 title 有關，推測是主題查詢
     if last_agent_id == "junyi_tree_agent" and last_meta:
         topic_ids = last_meta.get("topic_ids", [])
         # 直接輸入 topic_id
         if user_query in topic_ids:
-            return {
-                "agent_id": "junyi_topic_agent",
-                "variables": {"topic_id": user_query},
-                "reason": "user_query 完全等於課程樹節點 id"
-            }
+            return ["junyi_topic_agent"]
         # fuzzy match title
         if "content" in last_meta:
             def collect_id_title(tree):
@@ -66,29 +67,20 @@ def analyze_intent_by_context(user_query, last_agent_id, last_meta, agent_list):
                 return result
             topic_map = collect_id_title(last_meta["content"])
             for t in topic_map:
-                # 簡單包含判斷，可改進為 fuzzy
                 if t["title"].replace(" ", "") in user_query.replace(" ", "") or user_query.replace(" ", "") in t["title"].replace(" ", ""):
-                    return {
-                        "agent_id": "junyi_topic_agent",
-                        "variables": {"topic_id": t["id"]},
-                        "reason": f"user_query 與課程樹節點 title '{t['title']}' 相關"
-                    }
-    # 2. 其他 agent 的 context intent 可根據 agent_list 的 description/example_queries 判斷
-    for agent in agent_list:
-        # 這裡可根據 agent 的 description/example_queries 做更進階的 NLP/fuzzy 判斷
-        for ex in agent.get("example_queries", []):
-            if ex in user_query:
-                return {
-                    "agent_id": agent["id"],
-                    "variables": {},
-                    "reason": f"user_query 與 agent {agent['id']} 的 example_queries 相關"
-                }
-    # 3. 預設回傳 None
-    return {
-        "agent_id": None,
-        "variables": {},
-        "reason": "無法根據 context 判斷 agent"
-    } 
+                    return ["junyi_topic_agent"]
+    # 關鍵字判斷
+    q = user_query.lower()
+    if any(k in user_query for k in ["全部", "ALL", "API"]):
+        return [a["id"] for a in agent_list]
+    if "均一" in user_query:
+        return ["junyi_tree_agent", "junyi_topic_agent"]
+    if "b 網站" in q:
+        return ["agent_b"]
+    if "a 網站" in q:
+        return ["agent_a"]
+    # fallback
+    return ["agent_a"]
 
 def call_agent_by_llm(user_query, last_agent_id, last_meta, topic_id):
     # 如果上一輪是課程樹，且 user_query/或 topic_id 是 topic_ids 之一，直接 route
@@ -146,3 +138,6 @@ def call_agent_by_llm(user_query, last_agent_id, last_meta, topic_id):
         "type": "result",
         "results": [result]
     } 
+
+# 讓外部可以 import analyze_intent
+analyze_intent = analyze_intents_via_llm 

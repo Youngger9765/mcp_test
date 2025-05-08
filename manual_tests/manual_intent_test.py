@@ -1,4 +1,16 @@
-from src.intent_router import analyze_intent
+from src.intent_router import analyze_intent_by_context
+
+# mock agent_list
+agent_list = [
+    {"id": "agent_a", "name": "A Agent", "description": "A agent"},
+    {"id": "agent_b", "name": "B Agent", "description": "B agent"},
+    {"id": "junyi_tree_agent", "name": "均一課程結構樹", "description": "junyi tree"},
+    {"id": "junyi_topic_agent", "name": "均一主題查詢", "description": "junyi topic"},
+]
+
+# 範例測試
+if __name__ == "__main__":
+    print(analyze_intent_by_context("給我全部的 API", None, None, agent_list))
 
 test_cases = [
     {
@@ -37,7 +49,7 @@ print("=== MCP Intent Analysis Test Report ===\n")
 pass_count = 0
 
 for case in test_cases:
-    actual = set(analyze_intent(case["query"]))
+    actual = set(analyze_intent_by_context(case["query"], None, None, agent_list))
     expected = case["expected"]
     print(f"[{case['name']}] {case['desc']}")
     print(f"  - Query:    {case['query']}")

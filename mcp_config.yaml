@@ -5,12 +5,18 @@ agents:
     example_queries:
       - 請幫我查一下影片剪輯教學
       - 什麼是 YouTuber？
+    arguments:
+      - name: query
+        type: str
 
   - id: agent_b
     name: B Agent
     description: 適合查詢 B 網站的專業資料或特定主題。
     example_queries:
       - B 網站有什麼新消息？
+    arguments:
+      - name: query
+        type: str
 
   - id: junyi_tree_agent
     name: 均一課程結構樹
@@ -19,6 +25,13 @@ agents:
       - 均一有哪些課程？
       - 請顯示均一的課程結構樹
       - 均一教育平台有哪些單元？
+    arguments:
+      - name: query
+        type: str
+      - name: topic_id
+        type: str
+      - name: depth
+        type: int
 
   - id: junyi_topic_agent
     name: 均一主題查詢
@@ -28,6 +41,11 @@ agents:
       - 均一「數學」有哪些單元？
       - 請查詢均一平台的分數教學
       - 均一理化主題介紹
+    arguments:
+      - name: query
+        type: str
+      - name: topic_id
+        type: str
 
 routes:
   default:

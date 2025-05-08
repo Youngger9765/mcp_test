@@ -3,21 +3,21 @@ import yaml
 import os
 
 # 假設 agent_registry.py 目前還是 dict-based
-from src.agent_loader import AGENT_LIST
+from src.agent_loader import get_agent_list
 import types
 
 # 1. 測試 agent 註冊數量
 def test_agent_count():
-    assert len(AGENT_LIST) >= 2  # 目前至少有 2 個 agent
+    assert len(get_agent_list()) >= 2  # 目前至少有 2 個 agent
 
 # 2. 測試每個 agent 必備欄位
-@pytest.mark.parametrize("agent", AGENT_LIST)
+@pytest.mark.parametrize("agent", get_agent_list())
 def test_agent_fields(agent):
     for field in ["id", "name", "description", "example_queries", "respond"]:
         assert field in agent
 
 # 3. 測試 respond function 回傳格式
-@pytest.mark.parametrize("agent", AGENT_LIST)
+@pytest.mark.parametrize("agent", get_agent_list())
 def test_respond_format(agent):
     # 用 agent 的第一個 example query 測試
     query = agent["example_queries"][0]
@@ -31,24 +31,24 @@ def test_respond_format(agent):
     assert "error" in result
 
 # 4. 測試 respond function 回傳 agent_id 正確
-@pytest.mark.parametrize("agent", AGENT_LIST)
+@pytest.mark.parametrize("agent", get_agent_list())
 def test_respond_agent_id(agent):
     query = agent["example_queries"][0]
     result = agent["respond"](query)
     assert result["agent_id"] == agent["id"]
 
 # 5. 測試 respond function error 欄位預設為 None
-@pytest.mark.parametrize("agent", AGENT_LIST)
+@pytest.mark.parametrize("agent", get_agent_list())
 def test_respond_error_field(agent):
     query = agent["example_queries"][0]
     result = agent["respond"](query)
     assert result["error"] is None or isinstance(result["error"], dict)
 
 def test_agent_list_not_empty():
-    assert len(AGENT_LIST) > 0
+    assert len(get_agent_list()) > 0
 
 def test_agent_id_unique():
-    ids = [a["id"] for a in AGENT_LIST]
+    ids = [a["id"] for a in get_agent_list()]
     assert len(ids) == len(set(ids)), "agent id 不可重複"
 
 def test_respond_exception_handling():
@@ -71,16 +71,16 @@ def test_respond_exception_handling():
         agent["respond"]("fail")
     assert "fail" in str(excinfo.value)
 
-@pytest.mark.parametrize("agent", AGENT_LIST)
+@pytest.mark.parametrize("agent", get_agent_list())
 def test_example_queries_is_list(agent):
     assert isinstance(agent["example_queries"], list)
     assert len(agent["example_queries"]) > 0
 
-@pytest.mark.parametrize("agent", AGENT_LIST)
+@pytest.mark.parametrize("agent", get_agent_list())
 def test_respond_is_callable(agent):
     assert callable(agent["respond"])
 
-@pytest.mark.parametrize("agent", AGENT_LIST)
+@pytest.mark.parametrize("agent", get_agent_list())
 def test_schema_field_types(agent):
     query = agent["example_queries"][0]
     result = agent["respond"](query)
@@ -91,7 +91,7 @@ def test_schema_field_types(agent):
     # error 可以是 None 或 dict
     assert result["error"] is None or isinstance(result["error"], dict)
 
-@pytest.mark.parametrize("agent", AGENT_LIST)
+@pytest.mark.parametrize("agent", get_agent_list())
 def test_meta_field_content(agent):
     query = agent["example_queries"][0]
     result = agent["respond"](query)
@@ -104,7 +104,7 @@ def test_yaml_python_merge_priority():
     需先在 mcp_config.yaml 與 get_python_agents() 都設同 id agent，並檢查 name/description 是否以 YAML 為主
     """
     # 這裡假設 agent_a 同時存在於 YAML 與 Python
-    agent_a = [a for a in AGENT_LIST if a["id"] == "agent_a"]
+    agent_a = [a for a in get_agent_list() if a["id"] == "agent_a"]
     if agent_a:
         assert agent_a[0]["name"] == "A Agent"  # 依你 YAML 設定調整
 
@@ -116,7 +116,7 @@ def test_agent_list_sync_with_config_and_python():
     from src.agent_registry import get_python_agents
     yaml_ids = {a["id"] for a in get_yaml_agents()}
     py_ids = {a["id"] for a in get_python_agents()}
-    agent_list_ids = {a["id"] for a in AGENT_LIST}
+    agent_list_ids = {a["id"] for a in get_agent_list()}
     # AGENT_LIST 必須包含所有 YAML agent
     assert yaml_ids <= agent_list_ids
     # AGENT_LIST 必須包含所有只存在於 Python 的 agent
@@ -129,7 +129,7 @@ def test_yaml_only_agent_in_agent_list():
     yaml_ids = {a["id"] for a in get_yaml_agents()}
     py_ids = {a["id"] for a in get_python_agents()}
     yaml_only_ids = yaml_ids - py_ids
-    agent_list_ids = {a["id"] for a in AGENT_LIST}
+    agent_list_ids = {a["id"] for a in get_agent_list()}
     for agent_id in yaml_only_ids:
         assert agent_id in agent_list_ids, f"YAML only agent {agent_id} 應該出現在 AGENT_LIST"
 
@@ -137,7 +137,17 @@ def test_routes_agents_exist_in_agent_list():
     config_path = os.path.join(os.path.dirname(__file__), '..', 'mcp_config.yaml')
     with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
-    agent_ids = {a["id"] for a in AGENT_LIST}
+    agent_ids = {a["id"] for a in get_agent_list()}
     for route in config.get("routes", {}).values():
         for step in route.get("steps", []):
-            assert step["agent"] in agent_ids, f"route 裡的 agent {step['agent']} 不在 AGENT_LIST" 
+            assert step["agent"] in agent_ids, f"route 裡的 agent {step['agent']} 不在 AGENT_LIST"
+
+def test_agent_list():
+    agent_list = get_agent_list()
+    assert isinstance(agent_list, list)
+    assert any(a["id"] == "agent_a" for a in agent_list)
+    assert any(a["id"] == "junyi_tree_agent" for a in agent_list)
+    print("agent_registry 測試通過！")
+
+if __name__ == "__main__":
+    test_agent_list() 

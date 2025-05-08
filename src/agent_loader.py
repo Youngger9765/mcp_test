@@ -29,6 +29,8 @@ def build_agent_list():
             # 用 YAML 的資料覆蓋，但 respond 用 Python 的
             merged = {**py_agent, **agent}
             merged["respond"] = py_agent["respond"]
+            if "arguments" in agent:
+                merged["arguments"] = agent["arguments"]
             agent_dict[agent["id"]] = merged
         else:
             agent_dict[agent["id"]] = agent
@@ -42,6 +44,9 @@ def get_agent_manager():
 
 # AGENT_LIST 給前端/測試用
 AGENT_LIST = build_agent_list()
+
+def get_agent_list():
+    return build_agent_list()
 
 def get_yaml_agents():
     config_path = os.path.join(os.path.dirname(__file__), '..', 'mcp_config.yaml')
