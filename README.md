@@ -146,6 +146,22 @@
 - 增加單元測試與錯誤日誌
 - 設計更彈性的前後端資料 schema
 
+### 🛠️ 架構重構建議（Refactor Checklist）
+- [ ] 抽象出 BaseAgent/Tool interface，所有 agent 實作 respond() 並統一回傳格式
+- [ ] 建立 AgentRegistry/Manager class，統一管理 agent 註冊、查詢、合併（YAML/Python）
+- [ ] 支援自動掃描 agents/ 目錄，自動註冊所有 agent
+- [ ] function 與 metadata 分離，metadata 可由 YAML/JSON 產生，function 由 Python 綁定
+- [ ] Orchestrator class 化，支援多種調度策略（if-else、LLM、rule-based）
+- [ ] 調度策略分離：單步、多步、意圖判斷、fallback 可獨立成 method
+- [ ] 錯誤處理與 log 統一，方便 debug 與教學
+- [ ] API route 與業務邏輯分離，API 只負責接收/回傳，業務邏輯交給 orchestrator/registry
+- [ ] 統一 response schema，所有 API 回傳格式一致（type, content, meta, agent_id, error）
+- [ ] 移除/整理註解掉的 code，保持 codebase 清爽
+- [ ] YAML 支援 function name/entry point，自動 import 綁定
+- [ ] 增加 orchestrator、API、agent respond 的單元測試
+- [ ] 前後端 schema 標準化，所有回傳皆用統一格式，方便前端顯示與 debug
+- [ ] log/debug 機制，可考慮 middleware 或 decorator 統一 log 輸出
+
 ---
 
 ## 測試說明
