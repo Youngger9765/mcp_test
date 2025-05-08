@@ -148,6 +148,14 @@ def multi_turn_orchestrate(user_query: str, max_turns: int = 5) -> dict:
         "message": "已達最大輪數，請檢查查詢歷程。"
     }
 
+def is_redundant(history, new_step):
+    # 只比對最近一輪的參數
+    if not history:
+        return False
+    last_query = history[-1]["parameters"]
+    new_query = new_step["parameters"]
+    return last_query == new_query
+
 def multi_turn_step(history, query, max_turns=5):
     """
     分步查詢：每次只推理一輪，回傳本輪結果或 finish。
@@ -166,6 +174,7 @@ def multi_turn_step(history, query, max_turns=5):
     system_prompt = (
         "你是一個多輪推理的工具調度助理，根據用戶需求和目前查到的內容，"
         "請自動規劃下一步要用哪個工具（或說已經查完）。\n"
+        "如果你發現查詢結果和前幾輪內容高度重複，或已經沒有更多新資訊，請直接回覆 {\"action\": \"finish\", \"reason\": \"已查無更多新資訊，結束查詢\"}，不要無限細分查詢。\n"
         "目前查詢歷程：" + json.dumps(history, ensure_ascii=False) + "\n"
         "用戶需求：" + query + "\n"
         "工具清單如下：\n" + json.dumps(tool_brief, ensure_ascii=False, indent=2) + "\n"
@@ -203,6 +212,13 @@ def multi_turn_step(history, query, max_turns=5):
                 "result": output,
                 "reason": plan.get("reason", "")
             }
+            # 新增：重複查詢自動終止
+            if is_redundant(history, step):
+                return {
+                    "action": "finish",
+                    "reason": "查詢內容重複，已自動結束。",
+                    "step": step
+                }
             return {
                 "action": "call_tool",
                 "step": step
