@@ -137,30 +137,33 @@
 - API response schema 自動化測試
 
 ### 🚧 TODO
-- agent_registry.py 重構為 class-based 架構，並由 AgentManager 統一管理
-- 意圖判斷與 agent mapping 分層
-- 統一所有 agent 的 response schema，加強錯誤處理
 - 增加更多 agent（Google Drive, YouTube, Notion, 自有網站等）
 - 支援多種資料型態
 - API server 完善化
-- 增加單元測試與錯誤日誌
 - 設計更彈性的前後端資料 schema
+- plug-in LLM 調度策略（如 OpenAI/Claude function calling）
+- plug-in 多輪推理（multi-turn reasoning）與上下文管理
+- plug-in log/debug 機制（log decorator, log view, log level）
+- plug-in context/session 管理（多用戶、多 session、狀態追蹤）
+- API schema 自動產生（OpenAPI/Swagger）
+- 多語系 metadata 支援
+- Agent Health Check/熱部署/自動 reload
+- Agent 分類/搜尋/tag 機制
 
 ### 🛠️ 架構重構建議（Refactor Checklist）
-- [ ] 抽象出 BaseAgent/Tool interface，所有 agent 實作 respond() 並統一回傳格式
-- [ ] 建立 AgentRegistry/Manager class，統一管理 agent 註冊、查詢、合併（YAML/Python）
-- [ ] 支援自動掃描 agents/ 目錄，自動註冊所有 agent
-- [ ] function 與 metadata 分離，metadata 可由 YAML/JSON 產生，function 由 Python 綁定
-- [ ] Orchestrator class 化，支援多種調度策略（if-else、LLM、rule-based）
-- [ ] 調度策略分離：單步、多步、意圖判斷、fallback 可獨立成 method
-- [ ] 錯誤處理與 log 統一，方便 debug 與教學
-- [ ] API route 與業務邏輯分離，API 只負責接收/回傳，業務邏輯交給 orchestrator/registry
-- [ ] 統一 response schema，所有 API 回傳格式一致（type, content, meta, agent_id, error）
-- [ ] 移除/整理註解掉的 code，保持 codebase 清爽
-- [ ] YAML 支援 function name/entry point，自動 import 綁定
-- [ ] 增加 orchestrator、API、agent respond 的單元測試
-- [ ] 前後端 schema 標準化，所有回傳皆用統一格式，方便前端顯示與 debug
-- [ ] log/debug 機制，可考慮 middleware 或 decorator 統一 log 輸出
+- [x] 抽象出 BaseAgent/Tool interface，所有 agent 實作 respond() 並統一回傳格式
+- [x] 建立 AgentRegistry/Manager class，統一管理 agent 註冊、查詢、合併（YAML/Python）
+- [x] 支援自動掃描 agents/ 目錄，自動註冊所有 agent
+- [x] function 與 metadata 分離，metadata 可由 YAML/JSON 產生，function 由 Python 綁定
+- [x] Orchestrator class 化，支援多種調度策略（if-else、LLM、rule-based）
+- [x] 調度策略分離：單步、多步、意圖判斷、fallback 可獨立成 method
+- [x] 統一所有 agent 的 response schema，加強錯誤處理
+- [x] 增加 orchestrator、API、agent respond 的單元測試
+- [x] 前後端 schema 標準化，所有回傳皆用統一格式，方便前端顯示與 debug
+- [ ] plug-in LLM 調度、多輪推理、上下文管理
+- [ ] plug-in log/debug 機制
+- [ ] plug-in context/session 管理
+- [ ] API schema 自動產生、多語系、health check、agent 分類搜尋等
 
 ---
 
@@ -215,3 +218,16 @@ PYTHONPATH=. pytest --cov=src tests/
 - 所有測試程式放在 `tests/` 目錄下。
 - 主要測試 agent 註冊、合併、respond 格式與 API schema。
 - 若有新增 agent 或調整架構，請務必執行測試確保正確性。
+
+---
+
+## Changelog
+
+### 2025/5/7
+- 完成 MCP 架構重構，所有核心分層皆以 class 與 plug-in 方式設計
+- agent 註冊支援 YAML/Python 雙軌，並自動合併、去重、補齊 metadata
+- 實作 agent 自動掃描 agents/ 目錄，新增 agent 免手動註冊
+- metadata 欄位豐富化，支援 example_queries、category、icon、author、version、tags 等
+- Orchestrator class 重構，支援 plug-in 關鍵字調度策略，未來可 hot swap LLM、rule-based、多輪推理
+- 所有單元測試（agent、registry、orchestrator）皆通過，TDD 流程完整
+- README.md 與 TODO/Refactor Checklist 同步更新，進度一目了然
