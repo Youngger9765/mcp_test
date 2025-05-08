@@ -8,17 +8,47 @@ class AgentRegistry:
         # 載入 YAML 與 Python agents
         yaml_agents = self._load_yaml_agents()
         python_agents = self._load_python_agents()
-        # 先用 YAML agents 建 dict
-        merged = {a["id"]: dict(a) for a in yaml_agents}
+        merged = {}
+        # 先用 YAML agents 建 dict，並轉換 arguments->parameters，補齊欄位
+        for a in yaml_agents:
+            agent = dict(a)
+            # 轉換 arguments -> parameters
+            if "arguments" in agent:
+                agent["parameters"] = agent.pop("arguments")
+            # 補齊 metadata 欄位
+            for field, default in [
+                ("example_queries", []),
+                ("category", ""),
+                ("icon", ""),
+                ("author", ""),
+                ("version", ""),
+                ("tags", []),
+            ]:
+                if field not in agent:
+                    agent[field] = default
+            merged[agent["id"]] = agent
         # 再合併 Python agents
         for p in python_agents:
             aid = p["id"]
             if aid in merged:
-                # metadata 以 YAML 為主，function 以 Python 為主
                 merged[aid]["function"] = p.get("function")
+                # 也補齊 metadata 欄位（以 YAML 為主，Python 為輔）
+                for field in ["example_queries", "category", "icon", "author", "version", "tags"]:
+                    if field not in merged[aid] or not merged[aid][field]:
+                        merged[aid][field] = p.get(field, merged[aid][field])
             else:
+                # Python agent 也補齊欄位
+                for field, default in [
+                    ("example_queries", []),
+                    ("category", ""),
+                    ("icon", ""),
+                    ("author", ""),
+                    ("version", ""),
+                    ("tags", []),
+                ]:
+                    if field not in p:
+                        p[field] = default
                 merged[aid] = dict(p)
-        # 沒 function 的 YAML agent，function 設為 None
         for a in merged.values():
             if "function" not in a:
                 a["function"] = None
@@ -46,6 +76,12 @@ class AgentRegistry:
                             "name": getattr(obj, "name", obj.__name__),
                             "description": getattr(obj, "description", ""),
                             "parameters": getattr(obj, "parameters", []),
+                            "example_queries": getattr(obj, "example_queries", []),
+                            "category": getattr(obj, "category", ""),
+                            "icon": getattr(obj, "icon", ""),
+                            "author": getattr(obj, "author", ""),
+                            "version": getattr(obj, "version", ""),
+                            "tags": getattr(obj, "tags", []),
                             "function": obj().respond,
                         })
         except Exception as e:

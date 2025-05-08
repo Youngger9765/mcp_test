@@ -137,6 +137,18 @@ class AutoTestAgent:
     assert callable(agent["function"])
     assert agent["function"]("hello")["content"]["text"] == "hello"
 
+def test_agent_metadata_rich_fields():
+    from src.agent_registry import AgentRegistry
+    registry = AgentRegistry()
+    agent = registry.get_agent("agent_a")
+    # 測試常見 metadata 欄位
+    assert "name" in agent
+    assert "description" in agent
+    assert "parameters" in agent
+    # 新增 metadata 欄位
+    for field in ["example_queries", "category", "icon", "author", "version", "tags"]:
+        assert field in agent
+
 def main():
     tools = get_tool_list()
     for tool in tools:

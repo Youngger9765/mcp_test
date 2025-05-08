@@ -8,6 +8,17 @@ import os
 from src.tool_registry import get_tool_list
 from typing import Any, Dict
 
+class Orchestrator:
+    def __init__(self, registry):
+        self.registry = registry
+
+    def route(self, prompt, context=None):
+        if "資安" in prompt:
+            return "agent_b", {"input_text": prompt}
+        elif "電影" in prompt or "影片" in prompt:
+            return "agent_a", {"input_text": prompt}
+        return None, {}
+
 def orchestrate(prompt: str) -> Dict[str, Any]:
     print("=== [DEBUG] 開始調度 orchestrate ===")
     tools = get_tool_list()
