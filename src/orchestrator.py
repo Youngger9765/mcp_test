@@ -8,6 +8,14 @@ import os
 from src.tool_registry import get_tool_list
 from typing import Any, Dict
 
+def log_call(func):
+    def wrapper(*args, **kwargs):
+        print(f"[LOG] Called {func.__name__} args: {args} kwargs: {kwargs}")
+        result = func(*args, **kwargs)
+        print(f"[LOG] {func.__name__} result: {result}")
+        return result
+    return wrapper
+
 class Orchestrator:
     def __init__(self, registry, strategy=None):
         self.registry = registry

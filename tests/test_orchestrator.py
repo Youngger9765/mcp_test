@@ -63,5 +63,50 @@ def test_orchestrator_llm_strategy(monkeypatch):
     assert agent_id == "agent_a"
     assert "input_text" in params
 
+def test_orchestrator_multi_turn_strategy(monkeypatch):
+    from src.agent_registry import AgentRegistry
+    from src.orchestrator import Orchestrator
+
+    registry = AgentRegistry()
+
+    # 假設這是 plug-in 的多輪推理策略
+    def fake_multi_turn_strategy(prompt, context=None):
+        # context 是查詢歷程
+        history = context or []
+        if not history:
+            return "agent_a", {"input_text": prompt}
+        elif len(history) == 1:
+            return "agent_b", {"input_text": "根據A的結果再查B"}
+        else:
+            return None, {}
+
+    orchestrator = Orchestrator(registry, strategy=fake_multi_turn_strategy)
+
+    # 第一步
+    agent_id, params = orchestrator.route("我要查兩步", context=[])
+    assert agent_id == "agent_a"
+    # 第二步
+    agent_id, params = orchestrator.route("我要查兩步", context=[{"tool_id": "agent_a"}])
+    assert agent_id == "agent_b"
+    # 結束
+    agent_id, params = orchestrator.route("我要查兩步", context=[{"tool_id": "agent_a"}, {"tool_id": "agent_b"}])
+    assert agent_id is None
+
+def test_orchestrator_logging(monkeypatch, capsys):
+    from src.agent_registry import AgentRegistry
+    from src.orchestrator import Orchestrator, log_call
+
+    registry = AgentRegistry()
+
+    @log_call
+    def dummy_strategy(prompt, context=None):
+        return "agent_a", {"input_text": prompt}
+
+    orchestrator = Orchestrator(registry, strategy=dummy_strategy)
+    agent_id, params = orchestrator.route("測試 log")
+    assert agent_id == "agent_a"
+    # 檢查 log 是否有輸出
+    captured = capsys.readouterr()
+    assert "[LOG] Called dummy_strategy" in captured.out
 if __name__ == "__main__":
     test_all() 
