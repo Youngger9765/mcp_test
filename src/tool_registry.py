@@ -18,55 +18,88 @@ PYTHON_TOOLS = [
     {
         "id": "add",
         "name": "加法工具",
-        "description": add.__doc__ or "兩數相加",
+        "description": "兩數相加，回傳 a + b 的結果。",
+        "category": "數學運算",
+        "tags": ["運算", "加法"],
         "parameters": [
-            {"name": "a", "type": "int"},
-            {"name": "b", "type": "int"}
+            {"name": "a", "type": "int", "description": "第一個加數"},
+            {"name": "b", "type": "int", "description": "第二個加數"}
+        ],
+        "example_queries": [
+            "5 + 7",
+            "計算 10 和 20 的和"
         ],
         "function": add
     },
     {
         "id": "get_junyi_tree",
         "name": "均一樹查詢",
-        "description": get_junyi_tree.__doc__ or "查詢均一課程樹狀結構",
+        "description": "查詢均一課程樹狀結構（預設只抓 1 層）",
+        "category": "均一",
+        "tags": ["教育", "課程樹"],
         "parameters": [
-            {"name": "topic_id", "type": "str"}
+            {"name": "topic_id", "type": "str", "description": "均一課程樹的根 topic_id"}
+        ],
+        "example_queries": [
+            "查詢 root topic_id 的課程樹",
+            "顯示數學科的課程結構"
         ],
         "function": get_junyi_tree
     },
     {
         "id": "get_junyi_topic",
         "name": "均一主題查詢",
-        "description": get_junyi_topic.__doc__ or "查詢均一主題內容",
+        "description": "取得均一主題內容",
+        "category": "均一",
+        "tags": ["教育", "均一"],
         "parameters": [
-            {"name": "topic_id", "type": "str"}
+            {"name": "topic_id", "type": "str", "description": "均一主題的 ID"}
+        ],
+        "example_queries": [
+            "查詢 topic_id 為 math_001 的主題內容"
         ],
         "function": get_junyi_topic
     },
     {
         "id": "get_junyi_topic_by_title",
         "name": "均一主題標題查詢",
-        "description": get_junyi_topic_by_title.__doc__ or "依標題查詢均一主題",
+        "description": "依標題查詢均一主題，先查詢 topic_id，再查詢主題內容。",
+        "category": "均一",
+        "tags": ["教育", "標題查詢"],
         "parameters": [
-            {"name": "title", "type": "str"}
+            {"name": "title", "type": "str", "description": "主題標題關鍵字"}
+        ],
+        "example_queries": [
+            "查詢標題為『分數』的主題內容"
         ],
         "function": get_junyi_topic_by_title
     },
     {
         "id": "agent_a_tool",
         "name": "A Agent 工具",
-        "description": agent_a_tool.__doc__ or "查詢 A 網站摘要，電影、影片剪輯 相關",
+        "description": "查詢 A 網站摘要，適合查詢電影、影片剪輯等相關內容。",
+        "category": "網路摘要",
+        "tags": ["影片", "剪輯", "摘要"],
         "parameters": [
-            {"name": "input_text", "type": "str"}
+            {"name": "input_text", "type": "str", "description": "查詢內容"}
+        ],
+        "example_queries": [
+            "請幫我查一下影片剪輯教學",
+            "什麼是 YouTuber？"
         ],
         "function": agent_a_tool
     },
     {
         "id": "agent_b_tool",
         "name": "B Agent 工具",
-        "description": agent_b_tool.__doc__ or "查詢 B 網站資料，資安相關",
+        "description": "查詢 B 網站資料，適合查詢資安相關內容。",
+        "category": "專業查詢",
+        "tags": ["資安", "B網站"],
         "parameters": [
-            {"name": "input_text", "type": "str"}
+            {"name": "input_text", "type": "str", "description": "查詢內容"}
+        ],
+        "example_queries": [
+            "B 網站有什麼新消息？"
         ],
         "function": agent_b_tool
     },

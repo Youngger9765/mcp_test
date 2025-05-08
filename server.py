@@ -314,6 +314,36 @@ for agent in get_tool_list():
         except Exception as e:
             return {"error": str(e)}
 
+    # 組合參數說明
+    param_lines = []
+    for param in parameters:
+        pname = param["name"]
+        ptype = param.get("type", "str")
+        pdesc = param.get("description", "")
+        param_lines.append(f"- `{pname}` ({ptype})：{pdesc}")
+    param_md = "\n".join(param_lines) if param_lines else "(無)"
+
+    # 組合範例查詢
+    example_md = "\n".join([f"- {q}" for q in example_queries]) if example_queries else "(無)"
+
+    # Markdown 說明
+    doc_md = f"""
+**說明**：{description}
+
+**分類**：{category}  
+**標籤**：{tags}
+
+---
+
+### 參數
+{param_md}
+
+---
+
+### 範例查詢
+{example_md}
+"""
+
     # 註冊 endpoint
     router.add_api_route(
         f"/agent/{agent_id}/respond",
@@ -321,7 +351,7 @@ for agent in get_tool_list():
         methods=["POST"],
         response_model=Dict[str, Any],
         name=name,
-        description=f"{description}\n\n分類: {category}\nTags: {tags}\nExample queries: {example_queries}",
+        description=doc_md,
         tags=["Agent"]
     )
 
