@@ -22,12 +22,12 @@ PYTHON_TOOLS = [
         "category": "數學運算",
         "tags": ["運算", "加法"],
         "parameters": [
-            {"name": "a", "type": "int", "description": "第一個加數"},
-            {"name": "b", "type": "int", "description": "第二個加數"}
+            {"name": "a", "type": "int", "description": "第一個加數，只能是 1, 2, 3", "required": True, "enum": [1, 2, 3]},
+            {"name": "b", "type": "str", "description": "第二個加數，只能是三位數字字串", "required": False, "default": "000", "pattern": "^\\d{3}$"}
         ],
         "example_queries": [
-            "5 + 7",
-            "計算 10 和 20 的和"
+            "a=1, b='123'",
+            "a=2, b='456'"
         ],
         "function": add
     },
@@ -38,7 +38,7 @@ PYTHON_TOOLS = [
         "category": "均一",
         "tags": ["教育", "課程樹"],
         "parameters": [
-            {"name": "topic_id", "type": "str", "description": "均一課程樹的根 topic_id"}
+            {"name": "topic_id", "type": "str", "description": "均一課程樹的根 topic_id，格式如 math_001", "pattern": "^[a-zA-Z0-9_\-]+$"}
         ],
         "example_queries": [
             "查詢 root topic_id 的課程樹",
@@ -53,7 +53,7 @@ PYTHON_TOOLS = [
         "category": "均一",
         "tags": ["教育", "均一"],
         "parameters": [
-            {"name": "topic_id", "type": "str", "description": "均一主題的 ID"}
+            {"name": "topic_id", "type": "str", "description": "均一主題的 ID，格式如 math_001", "pattern": "^[a-zA-Z0-9_\-]+$"}
         ],
         "example_queries": [
             "查詢 topic_id 為 math_001 的主題內容"
@@ -67,7 +67,7 @@ PYTHON_TOOLS = [
         "category": "均一",
         "tags": ["教育", "標題查詢"],
         "parameters": [
-            {"name": "title", "type": "str", "description": "主題標題關鍵字"}
+            {"name": "title", "type": "str", "description": "主題標題關鍵字，僅允許中英文與數字", "pattern": "^[\u4e00-\u9fa5a-zA-Z0-9 ]+$"}
         ],
         "example_queries": [
             "查詢標題為『分數』的主題內容"
@@ -81,7 +81,7 @@ PYTHON_TOOLS = [
         "category": "網路摘要",
         "tags": ["影片", "剪輯", "摘要"],
         "parameters": [
-            {"name": "input_text", "type": "str", "description": "查詢內容"}
+            {"name": "input_text", "type": "str", "description": "查詢內容，僅允許 10~100 字元中英文數字空白", "pattern": "^[\u4e00-\u9fa5a-zA-Z0-9 ]{10,100}$"}
         ],
         "example_queries": [
             "請幫我查一下影片剪輯教學",
@@ -96,7 +96,7 @@ PYTHON_TOOLS = [
         "category": "專業查詢",
         "tags": ["資安", "B網站"],
         "parameters": [
-            {"name": "input_text", "type": "str", "description": "查詢內容"}
+            {"name": "input_text", "type": "str", "description": "查詢內容，僅允許 5~50 字元英文小寫與數字", "pattern": "^[a-z0-9 ]{5,50}$"}
         ],
         "example_queries": [
             "B 網站有什麼新消息？"

@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 from src.tool_registry import get_tool_list
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, create_model, Field
 from typing import Any, Dict
 
 # Create an MCP server
@@ -295,15 +295,33 @@ for agent in get_tool_list():
     for param in parameters:
         pname = param["name"]
         ptype = param.get("type", "str")
-        # 支援 int/str/float/bool
-        if ptype == "int":
-            fields[pname] = (int, ...)
+        desc = param.get("description", "")
+        required = param.get("required", True)
+        default = param.get("default", ... if required else None)
+        enum = param.get("enum")
+        minimum = param.get("min")
+        maximum = param.get("max")
+        pattern = param.get("pattern")
+        field_args = {"description": desc}
+        if minimum is not None:
+            field_args["ge"] = minimum
+        if maximum is not None:
+            field_args["le"] = maximum
+        if pattern is not None:
+            field_args["pattern"] = pattern
+        # 型別處理
+        if enum:
+            from typing import Literal
+            typ = Literal[tuple(enum)]
+        elif ptype == "int":
+            typ = int
         elif ptype == "float":
-            fields[pname] = (float, ...)
+            typ = float
         elif ptype == "bool":
-            fields[pname] = (bool, ...)
+            typ = bool
         else:
-            fields[pname] = (str, ...)
+            typ = str
+        fields[pname] = (typ, Field(default, **field_args))
     model = create_model(f"{agent_id}_Request", **fields)
 
     # endpoint function
