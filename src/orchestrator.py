@@ -17,7 +17,7 @@ def orchestrate(prompt: str) -> Dict[str, Any]:
             "id": t["id"],
             "name": t["name"],
             "description": t["description"],
-            "parameters": t["parameters"]
+            "parameters": t.get("parameters", [])
         }
         for t in tools
     ]

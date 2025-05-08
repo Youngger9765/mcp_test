@@ -1,16 +1,16 @@
 # server.py
 from mcp.server.fastmcp import FastMCP
-from src.agent_loader import get_agent_list
-from src.agent_selector import choose_agents_via_llm, choose_agents_from_options_via_llm
-from src.agent_manager import call_agent_by_llm
+from src.orchestrator import orchestrate
 import inspect
 import openai
-from src.orchestrator import orchestrate
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, Body
+from fastapi.responses import JSONResponse, FileResponse
 import uvicorn
-from src.tools import add, get_junyi_tree, get_junyi_topic, get_junyi_topic_by_title
+from src.tools import add, get_junyi_tree, get_junyi_topic, get_junyi_topic_by_title, agent_a_tool, agent_b_tool
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
+from src.tool_registry import get_tool_list
 
 from agents.junyi_tree_agent import respond as get_junyi_tree_respond
 from agents.junyi_topic_agent import respond as get_junyi_topic_respond
@@ -21,7 +21,7 @@ mcp = FastMCP("mcp_local")
 
 app = FastAPI()
 
-# 加入 CORS 支援
+# CORS 設定
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,12 +30,89 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 假設你的 frontend/ 在專案根目錄
+frontend_path = os.path.join(os.path.dirname(__file__), 'frontend')
+app.mount("/frontend", StaticFiles(directory=frontend_path, html=True), name="frontend")
+
 @app.post("/orchestrate")
 async def orchestrate_api(request: Request):
     data = await request.json()
     prompt = data.get("prompt", "")
     result = orchestrate(prompt)
     return JSONResponse(content=result)
+
+@app.post("/query")
+async def ask(request: Request):
+    body = await request.json()
+    print("=== [DEBUG] /query 收到 body ===", body)
+    query = body.get("query", "")
+    options = body.get("options", None)
+    user_reply = body.get("user_reply", None)
+    last_agent_id = body.get("last_agent_id")
+    last_meta = body.get("last_meta")
+    topic_id = body.get("topic_id")
+
+    AGENT_LIST = get_tool_list()
+
+    # --- 0. 多輪 context-aware router ---
+    if last_agent_id or last_meta or topic_id:
+        print("=== [DEBUG] /query 進入 context-aware router ===")
+        print("query:", query)
+        print("last_agent_id:", last_agent_id)
+        print("last_meta:", last_meta)
+        print("topic_id:", topic_id)
+        # 這裡建議直接呼叫 orchestrate，並根據 prompt 組合 context
+        # 你可根據實際需求調整 orchestrate 的參數
+        result = orchestrate(query)
+        print("=== [DEBUG] /query 回傳 result ===", result)
+        return result
+
+    # --- 1. 已有 options checklist，直接查詢 ---
+    if options and len(options) > 0:
+        agent_ids = [o["id"] for o in options]
+        results = []
+        for agent_id in agent_ids:
+            agent_info = next((a for a in AGENT_LIST if a["id"] == agent_id), None)
+            if not agent_info:
+                results.append({
+                    "agent": agent_id,
+                    "ref": None,
+                    "error": "找不到 agent"
+                })
+                continue
+            try:
+                result = agent_info["function"](query)
+                results.append({
+                    "agent": agent_id,
+                    "ref": agent_info,
+                    "result": result
+                })
+            except Exception as e:
+                results.append({
+                    "agent": agent_id,
+                    "ref": agent_info,
+                    "error": str(e)
+                })
+        if all("error" in r for r in results):
+            return {
+                "type": "result",
+                "message": "找不到合適的 agent 回應，請再描述一次您的需求。 #logic:all_error",
+                "results": []
+            }
+        return {
+            "type": "result",
+            "message": "查詢成功 #logic:options_query",
+            "results": results
+        }
+
+    # --- 2. 初次查詢，LLM 推薦 agent ---
+    # 這裡直接呼叫 orchestrate，讓 LLM 決定 agent
+    result = orchestrate(query)
+    return result
+
+@app.get("/")
+def index():
+    return FileResponse(os.path.join(frontend_path, "index.html"))
 
 # Add an addition tool
 @mcp.tool()
@@ -181,6 +258,38 @@ def get_junyi_topic_by_title(title: str):
 #             "type": "message",
 #             "message": "找不到合適的 agent，請再描述一次您的需求。 #logic:multi_options_empty"
 #         }
+
+# === 直接 expose tools.py function 的 API ===
+@app.post("/tools/add")
+async def tool_add(data: dict = Body(...)):
+    a = data.get("a")
+    b = data.get("b")
+    return add(a, b)
+
+@app.post("/tools/get_junyi_tree")
+async def tool_get_junyi_tree(data: dict = Body(...)):
+    topic_id = data.get("topic_id", "root")
+    return get_junyi_tree(topic_id)
+
+@app.post("/tools/get_junyi_topic")
+async def tool_get_junyi_topic(data: dict = Body(...)):
+    topic_id = data.get("topic_id", "root")
+    return get_junyi_topic(topic_id)
+
+@app.post("/tools/get_junyi_topic_by_title")
+async def tool_get_junyi_topic_by_title(data: dict = Body(...)):
+    title = data.get("title")
+    return get_junyi_topic_by_title(title)
+
+@app.post("/tools/agent_a_tool")
+async def tool_agent_a_tool(data: dict = Body(...)):
+    input_text = data.get("input_text")
+    return agent_a_tool(input_text)
+
+@app.post("/tools/agent_b_tool")
+async def tool_agent_b_tool(data: dict = Body(...)):
+    input_text = data.get("input_text")
+    return agent_b_tool(input_text)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
