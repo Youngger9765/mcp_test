@@ -2,8 +2,8 @@ import re
 from agents.junyi_tree_agent import respond as get_junyi_tree_respond
 from agents.junyi_topic_agent import respond as get_junyi_topic_respond
 from agents.agent_openai import query as openai_query_llm
-from agents.agent_a import respond as agent_a_respond
-from agents.agent_b import respond as agent_b_respond
+from agents.agent_a import AgentA
+from agents.agent_b import AgentB
 
 def add(a: int, b: int):
     """Add two numbers"""
@@ -85,22 +85,8 @@ def get_junyi_topic_by_title(title: str):
 
 def agent_a_tool(input_text: str):
     """A Agent：查詢 A 網站摘要，電影相關"""
-    return {
-        "type": "text",
-        "content": {"text": agent_a_respond(input_text)},
-        "meta": {"query": input_text},
-        "agent_id": "agent_a_tool",
-        "agent_name": "A Agent 工具",
-        "error": None
-    }
+    return AgentA().respond(input_text)
 
 def agent_b_tool(input_text: str):
     """B Agent：查詢 B 網站資料，資安相關"""
-    return {
-        "type": "text",
-        "content": {"text": agent_b_respond(input_text)},
-        "meta": {"query": input_text},
-        "agent_id": "agent_b_tool",
-        "agent_name": "B Agent 工具",
-        "error": None
-    } 
+    return AgentB().respond(input_text) 
