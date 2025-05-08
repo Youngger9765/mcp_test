@@ -155,15 +155,14 @@
 - [x] 建立 AgentRegistry/Manager class，統一管理 agent 註冊、查詢、合併（YAML/Python）
 - [x] 支援自動掃描 agents/ 目錄，自動註冊所有 agent
 - [x] function 與 metadata 分離，metadata 可由 YAML/JSON 產生，function 由 Python 綁定
-- [x] Orchestrator class 化，支援多種調度策略（if-else、LLM、rule-based）
+- [x] Orchestrator 完全函式化與模組化，支援多種調度策略（if-else、LLM、rule-based）
 - [x] 調度策略分離：單步、多步、意圖判斷、fallback 可獨立成 method
 - [x] 統一所有 agent 的 response schema，加強錯誤處理
 - [x] 增加 orchestrator、API、agent respond 的單元測試
 - [x] 前後端 schema 標準化，所有回傳皆用統一格式，方便前端顯示與 debug
-- [ ] plug-in LLM 調度、多輪推理、上下文管理
-- [ ] plug-in log/debug 機制
-- [ ] plug-in context/session 管理
-- [ ] API schema 自動產生、多語系、health check、agent 分類搜尋等
+- [x] plug-in LLM 調度、多輪推理已模組化（orchestrator_utils/）
+- [ ] plug-in context/session 管理（多用戶、多 session、狀態追蹤等，預留擴充空間）
+- [x] plug-in log/debug 機制（log_call decorator）初步完成
 
 ---
 
@@ -224,10 +223,9 @@ PYTHONPATH=. pytest --cov=src tests/
 ## Changelog
 
 ### 2025/5/7
-- 完成 MCP 架構重構，所有核心分層皆以 class 與 plug-in 方式設計
-- agent 註冊支援 YAML/Python 雙軌，並自動合併、去重、補齊 metadata
-- 實作 agent 自動掃描 agents/ 目錄，新增 agent 免手動註冊
-- metadata 欄位豐富化，支援 example_queries、category、icon、author、version、tags 等
-- Orchestrator class 重構，支援 plug-in 關鍵字調度策略，未來可 hot swap LLM、rule-based、多輪推理
-- 所有單元測試（agent、registry、orchestrator）皆通過，TDD 流程完整
-- README.md 與 TODO/Refactor Checklist 同步更新，進度一目了然
+- orchestrator.py 完全函式化與模組化，移除 Orchestrator class
+- 多輪推理與分步推理統一，皆具備防重複查詢能力
+- prompt 組裝、LLM 呼叫、工具清單、格式驗證等抽出為獨立模組（src/orchestrator_utils/）
+- 移除冗餘 function 與 import，測試與主流程分離
+- plug-in log/debug 機制（log_call decorator）初步完成
+- README checklist、檔案說明、FAQ 同步更新
