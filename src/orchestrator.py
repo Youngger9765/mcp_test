@@ -6,7 +6,11 @@ import openai
 import json
 import os
 from src.tool_registry import get_tool_list
-from typing import Any, Dict
+from typing import Any, Dict, List
+from src.orchestrator_utils.prompt_builder import build_single_turn_prompt, build_multi_turn_step_prompt
+from src.orchestrator_utils.llm_client import call_llm
+from src.orchestrator_utils.tool_utils import get_tool_brief
+from src.orchestrator_utils.validator import parse_llm_json_reply
 
 def log_call(func):
     def wrapper(*args, **kwargs):
@@ -16,33 +20,15 @@ def log_call(func):
         return result
     return wrapper
 
+@log_call
 def orchestrate(prompt: str) -> Dict[str, Any]:
     print("=== [DEBUG] 開始調度 orchestrate ===")
-    tools = get_tool_list()
-    # 整理工具清單給 LLM
-    tool_brief = [
-        {
-            "id": t["id"],
-            "name": t["name"],
-            "description": t["description"],
-            "parameters": t.get("parameters", [])
-        }
-        for t in tools
-    ]
-    system_prompt = (
-        "你是一個工具調度助理，根據使用者輸入與下列工具清單，"
-        "請判斷最適合的工具 id 及其參數，並以 JSON 格式回覆："
-        '{"tool_id": "...", "parameters": {...}}。\n'
-        "工具清單如下：\n"
-        f"{json.dumps(tool_brief, ensure_ascii=False, indent=2)}"
-    )
+    tool_brief = get_tool_brief()
+    system_prompt, user_prompt = build_single_turn_prompt(tool_brief, prompt)
     print("=== [DEBUG] system_prompt ===", system_prompt)
-    user_prompt = f"使用者輸入：{prompt}"
     print("=== [DEBUG] user_prompt ===", user_prompt)
-
-    # 呼叫 OpenAI LLM
     try:
-        response = openai.chat.completions.create(
+        llm_reply = call_llm(
             model="gpt-4.1-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -50,15 +36,14 @@ def orchestrate(prompt: str) -> Dict[str, Any]:
             ],
             temperature=0
         )
-        llm_reply = response.choices[0].message.content
         print("=== [DEBUG] LLM 回傳 ===", llm_reply)
     except Exception as e:
-        return {"type": "error", "message": f"OpenAI API 錯誤: {e}"}
-
+        return {"type": "error", "message": str(e)}
     try:
-        parsed = json.loads(llm_reply)
+        parsed = parse_llm_json_reply(llm_reply, required_keys=["tool_id"])
         tool_id = parsed["tool_id"]
         params = parsed.get("parameters", {})
+        tools = get_tool_list()
         tool = next((t for t in tools if t["id"] == tool_id), None)
         if tool:
             output = tool["function"](**params)
@@ -73,37 +58,21 @@ def orchestrate(prompt: str) -> Dict[str, Any]:
         else:
             return {"type": "error", "message": f"找不到工具 {tool_id}"}
     except Exception as e:
-        return {"type": "error", "message": f"LLM 回傳格式錯誤或解析失敗: {e}", "llm_reply": llm_reply}
+        return {"type": "error", "message": str(e), "llm_reply": llm_reply}
 
-def multi_turn_orchestrate(user_query: str, max_turns: int = 5) -> dict:
+@log_call
+def multi_turn_orchestrate(user_query: str, max_turns: int = 5) -> Dict[str, Any]:
     """
     多輪推理 Orchestrator：根據用戶需求與查詢歷程，讓 LLM 自動規劃多步工具調用。
     """
     import copy
-    tools = get_tool_list()
-    tool_brief = [
-        {
-            "id": t["id"],
-            "name": t["name"],
-            "description": t["description"],
-            "parameters": t.get("parameters", [])
-        }
-        for t in tools
-    ]
-    history = []
-    query = user_query
+    tool_brief = get_tool_brief()
+    history: List[Dict[str, Any]] = []
+    query: str = user_query
     for turn in range(max_turns):
-        system_prompt = (
-            "你是一個多輪推理的工具調度助理，根據用戶需求和目前查到的內容，"
-            "請自動規劃下一步要用哪個工具（或說已經查完）。\n"
-            "目前查詢歷程：" + json.dumps(history, ensure_ascii=False) + "\n"
-            "用戶需求：" + query + "\n"
-            "工具清單如下：\n" + json.dumps(tool_brief, ensure_ascii=False, indent=2) + "\n"
-            "請用 JSON 格式回覆：{\"tool_id\": \"...\", \"parameters\": {...}, \"action\": \"call_tool\" 或 \"finish\", \"reason\": \"為什麼這樣規劃\"}"
-        )
-        user_prompt = f"請根據目前查到的內容，決定下一步要查什麼，或說已經查完。"
+        system_prompt, user_prompt = build_multi_turn_step_prompt(tool_brief, history, query)
         try:
-            response = openai.chat.completions.create(
+            llm_reply = call_llm(
                 model="gpt-4.1-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -111,12 +80,11 @@ def multi_turn_orchestrate(user_query: str, max_turns: int = 5) -> dict:
                 ],
                 temperature=0
             )
-            llm_reply = response.choices[0].message.content
             print(f"=== [DEBUG] multi_turn_orchestrate LLM 回傳 === {llm_reply}")
         except Exception as e:
-            return {"type": "error", "message": f"OpenAI API 錯誤: {e}"}
+            return {"type": "error", "message": str(e)}
         try:
-            plan = json.loads(llm_reply)
+            plan = parse_llm_json_reply(llm_reply, required_keys=["tool_id", "action"])
             if plan.get("action") == "finish":
                 return {
                     "type": "multi_turn_result",
@@ -125,6 +93,7 @@ def multi_turn_orchestrate(user_query: str, max_turns: int = 5) -> dict:
                 }
             tool_id = plan["tool_id"]
             params = plan.get("parameters", {})
+            tools = get_tool_list()
             tool = next((t for t in tools if t["id"] == tool_id), None)
             if tool:
                 output = tool["function"](**params)
@@ -134,7 +103,6 @@ def multi_turn_orchestrate(user_query: str, max_turns: int = 5) -> dict:
                     "result": output,
                     "reason": plan.get("reason", "")
                 })
-                # 把查到的內容摘要給 LLM 當作下一輪的 query
                 query = f"剛剛查到：{str(output)[:500]}...，請問還需要查什麼嗎？"
             else:
                 history.append({
@@ -149,7 +117,7 @@ def multi_turn_orchestrate(user_query: str, max_turns: int = 5) -> dict:
                     "history": history
                 }
         except Exception as e:
-            return {"type": "error", "message": f"LLM 回傳格式錯誤或解析失敗: {e}", "llm_reply": llm_reply, "history": history}
+            return {"type": "error", "message": str(e), "llm_reply": llm_reply, "history": history}
     return {
         "type": "multi_turn_result",
         "history": history,
@@ -164,33 +132,16 @@ def is_redundant(history, new_step):
     new_query = new_step["parameters"]
     return last_query == new_query
 
-def multi_turn_step(history, query, max_turns=5):
+@log_call
+def multi_turn_step(history: List[Dict[str, Any]], query: str, max_turns: int = 5) -> Dict[str, Any]:
     """
     分步查詢：每次只推理一輪，回傳本輪結果或 finish。
     """
     import copy
-    tools = get_tool_list()
-    tool_brief = [
-        {
-            "id": t["id"],
-            "name": t["name"],
-            "description": t["description"],
-            "parameters": t.get("parameters", [])
-        }
-        for t in tools
-    ]
-    system_prompt = (
-        "你是一個多輪推理的工具調度助理，根據用戶需求和目前查到的內容，"
-        "請自動規劃下一步要用哪個工具（或說已經查完）。\n"
-        "如果你發現查詢結果和前幾輪內容高度重複，或已經沒有更多新資訊，請直接回覆 {\"action\": \"finish\", \"reason\": \"已查無更多新資訊，結束查詢\"}，不要無限細分查詢。\n"
-        "目前查詢歷程：" + json.dumps(history, ensure_ascii=False) + "\n"
-        "用戶需求：" + query + "\n"
-        "工具清單如下：\n" + json.dumps(tool_brief, ensure_ascii=False, indent=2) + "\n"
-        "請用 JSON 格式回覆：{\"tool_id\": \"...\", \"parameters\": {...}, \"action\": \"call_tool\" 或 \"finish\", \"reason\": \"為什麼這樣規劃\"}"
-    )
-    user_prompt = f"請根據目前查到的內容，決定下一步要查什麼，或說已經查完。"
+    tool_brief = get_tool_brief()
+    system_prompt, user_prompt = build_multi_turn_step_prompt(tool_brief, history, query)
     try:
-        response = openai.chat.completions.create(
+        llm_reply = call_llm(
             model="gpt-4.1-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -198,11 +149,10 @@ def multi_turn_step(history, query, max_turns=5):
             ],
             temperature=0
         )
-        llm_reply = response.choices[0].message.content
     except Exception as e:
-        return {"action": "error", "message": f"OpenAI API 錯誤: {e}"}
+        return {"action": "error", "message": str(e)}
     try:
-        plan = json.loads(llm_reply)
+        plan = parse_llm_json_reply(llm_reply, required_keys=["action"])
         if plan.get("action") == "finish":
             return {
                 "action": "finish",
@@ -211,6 +161,7 @@ def multi_turn_step(history, query, max_turns=5):
             }
         tool_id = plan["tool_id"]
         params = plan.get("parameters", {})
+        tools = get_tool_list()
         tool = next((t for t in tools if t["id"] == tool_id), None)
         if tool:
             output = tool["function"](**params)
@@ -220,7 +171,6 @@ def multi_turn_step(history, query, max_turns=5):
                 "result": output,
                 "reason": plan.get("reason", "")
             }
-            # 新增：重複查詢自動終止
             if is_redundant(history, step):
                 return {
                     "action": "finish",
@@ -237,4 +187,4 @@ def multi_turn_step(history, query, max_turns=5):
                 "message": f"找不到工具 {tool_id}"
             }
     except Exception as e:
-        return {"action": "error", "message": f"LLM 回傳格式錯誤或解析失敗: {e}", "llm_reply": llm_reply} 
+        return {"action": "error", "message": str(e), "llm_reply": llm_reply} 
