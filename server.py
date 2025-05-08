@@ -126,6 +126,21 @@ async def multi_turn_step_api(request: Request):
     data = await request.json()
     history = data.get("history", [])
     query = data.get("query", "")
+    # 自動 fallback：若 history 為空且有 query，先查詢一次
+    if not history and query:
+        first_result = orchestrate(query)
+        # 修正：轉換格式
+        if first_result.get("type") == "result":
+            history = [{
+                "tool_id": first_result.get("tool"),
+                "parameters": first_result.get("input"),
+                "result": first_result.get("results", [{}])[0],
+                "reason": "初次查詢"
+            }]
+        else:
+            return JSONResponse(content={"action": "error", "message": first_result.get("message", "查詢失敗")})
+    if not history:
+        return JSONResponse(content={"message": "請先查詢一次，再進行多輪推理。"})
     result = multi_turn_step(history, query)
     return JSONResponse(content=result)
 
