@@ -1,5 +1,15 @@
 from src.tool_registry import get_tool_list
 import types
+import pytest
+from unittest.mock import patch
+
+def fake_tool_func(**kwargs):
+    return {"result": "ok", "input": kwargs}
+
+def fake_tool_list():
+    return [
+        {"id": "test_tool", "name": "Test Tool", "description": "desc", "parameters": [], "function": fake_tool_func}
+    ]
 
 def test_tool_list_not_empty():
     tools = get_tool_list()
@@ -148,6 +158,90 @@ def test_agent_metadata_rich_fields():
     # 新增 metadata 欄位
     for field in ["example_queries", "category", "icon", "author", "version", "tags"]:
         assert field in agent
+
+def test_agent_registry_yaml_file_not_exist(monkeypatch):
+    from src.agent_registry import AgentRegistry
+    monkeypatch.setattr("os.path.exists", lambda path: False)
+    registry = AgentRegistry()
+    # 只要沒有 YAML agent 即可，允許 auto_test_agent 存在
+    assert "agent_a" not in registry.list_agent_ids()
+    assert "agent_b" not in registry.list_agent_ids()
+    # 允許 auto_test_agent 或其他動態 agent 存在
+
+def test_agent_registry_python_agents_exception(monkeypatch):
+    from src.agent_registry import AgentRegistry
+    monkeypatch.setattr(AgentRegistry, "_load_yaml_agents", lambda self: [])
+    monkeypatch.setattr(AgentRegistry, "_load_python_agents", lambda self: (_ for _ in ()).throw(Exception("fail")))
+    with pytest.raises(Exception):
+        AgentRegistry()
+
+def test_agent_registry_field_default(monkeypatch):
+    from src.agent_registry import AgentRegistry
+    yaml_agents = [{"id": "a"}]  # 缺所有欄位
+    python_agents = [{"id": "b", "function": lambda: 1}]  # 只給 id, function
+    monkeypatch.setattr(AgentRegistry, "_load_yaml_agents", lambda self: yaml_agents)
+    monkeypatch.setattr(AgentRegistry, "_load_python_agents", lambda self: python_agents)
+    registry = AgentRegistry()
+    a = registry.get_agent("a")
+    b = registry.get_agent("b")
+    for field in ["example_queries", "category", "icon", "author", "version", "tags"]:
+        assert field in a and field in b
+
+def test_tool_registry_load_yaml_tools_file_not_exist(monkeypatch):
+    from src import tool_registry
+    monkeypatch.setattr("builtins.open", lambda *a, **k: (_ for _ in ()).throw(FileNotFoundError()))
+    # 若 open 失敗，應該拋出例外，可用 pytest.raises 驗證
+    with pytest.raises(FileNotFoundError):
+        tool_registry.load_yaml_tools("not_exist.yaml")
+
+def test_tool_registry_load_yaml_tools_empty(monkeypatch):
+    from src import tool_registry
+    monkeypatch.setattr("builtins.open", lambda *a, **k: type("F", (), {"__enter__": lambda s: s, "__exit__": lambda s, a, b, c: None, "read": lambda s: "agents: []"})())
+    monkeypatch.setattr("yaml.safe_load", lambda f: {"agents": []})
+    tools = tool_registry.load_yaml_tools("fake.yaml")
+    assert tools == []
+
+def test_tool_registry_yaml_id_not_in_python(monkeypatch):
+    from src import tool_registry
+    # YAML 工具 id 不在 Python 工具清單
+    monkeypatch.setattr(tool_registry, "load_yaml_tools", lambda: [{"id": "not_in_py", "name": "Y", "description": "D", "parameters": []}])
+    result = tool_registry.get_tool_list()
+    # merged 不會包含 not_in_py
+    assert all(t["id"] != "not_in_py" for t in result)
+
+def test_agent_registry_get_agent_not_exist():
+    from src.agent_registry import AgentRegistry
+    registry = AgentRegistry()
+    assert registry.get_agent("not_exist") is None
+
+@patch("src.orchestrator.get_tool_list", side_effect=fake_tool_list)
+@patch("src.orchestrator.call_llm", side_effect=Exception("llm fail"))
+def test_orchestrate_call_llm_exception(mock_llm, mock_tools):
+    from src.orchestrator import orchestrate
+    result = orchestrate("測試指令")
+    assert result["type"] == "error"
+    assert "llm fail" in result["message"]
+
+@patch("src.orchestrator.get_tool_list", side_effect=fake_tool_list)
+@patch("src.orchestrator.call_llm", return_value=None)
+def test_orchestrate_llm_reply_none(mock_llm, mock_tools):
+    from src.orchestrator import orchestrate
+    result = orchestrate("測試指令")
+    assert result["type"] == "error"
+
+@patch("src.orchestrator.get_tool_list", side_effect=lambda: [{"id": "test_tool", "name": "Test Tool", "description": "desc", "parameters": [], "function": lambda **kwargs: (_ for _ in ()).throw(TypeError("bad call"))}])
+@patch("src.orchestrator.call_llm", return_value='{"tool_id": "test_tool", "parameters": {}}')
+def test_orchestrate_tool_func_typeerror(mock_llm, mock_tools):
+    from src.orchestrator import orchestrate
+    result = orchestrate("測試指令")
+    assert result["type"] == "error"
+
+def test_tool_registry_all_python_tools(monkeypatch):
+    from src import tool_registry
+    monkeypatch.setattr(tool_registry, "load_yaml_tools", lambda: [])
+    result = tool_registry.get_tool_list()
+    # 應包含所有 PYTHON_TOOLS
+    assert len(result) == len(tool_registry.PYTHON_TOOLS)
 
 def main():
     tools = get_tool_list()
