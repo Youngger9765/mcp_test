@@ -29,7 +29,9 @@ PYTHON_TOOLS = [
             "a=1, b='123'",
             "a=2, b='456'"
         ],
-        "function": add
+        "function": add,
+        "request_example": {"a": 1, "b": "123"},
+        "response_example": {"result": 124}
     },
     {
         "id": "get_junyi_tree",
@@ -44,7 +46,9 @@ PYTHON_TOOLS = [
             "查詢 root topic_id 的課程樹",
             "顯示數學科的課程結構"
         ],
-        "function": get_junyi_tree
+        "function": get_junyi_tree,
+        "request_example": {"topic_id": "math_001"},
+        "response_example": {"type": "tree", "content": {"id": "math_001", "children": []}, "meta": {"topic_id": "math_001", "depth": 1}, "agent_id": "get_junyi_tree", "agent_name": "均一樹查詢", "error": None}
     },
     {
         "id": "get_junyi_topic",
@@ -58,7 +62,9 @@ PYTHON_TOOLS = [
         "example_queries": [
             "查詢 topic_id 為 math_001 的主題內容"
         ],
-        "function": get_junyi_topic
+        "function": get_junyi_topic,
+        "request_example": {"topic_id": "math_001"},
+        "response_example": {"type": "topic", "content": {"id": "math_001", "title": "數學"}, "meta": {"topic_id": "math_001"}, "agent_id": "get_junyi_topic", "agent_name": "均一主題查詢", "error": None}
     },
     {
         "id": "get_junyi_topic_by_title",
@@ -72,7 +78,9 @@ PYTHON_TOOLS = [
         "example_queries": [
             "查詢標題為『分數』的主題內容"
         ],
-        "function": get_junyi_topic_by_title
+        "function": get_junyi_topic_by_title,
+        "request_example": {"title": "分數"},
+        "response_example": {"type": "topic_by_title", "content": {"id": "math_002", "title": "分數"}, "meta": {"title": "分數", "topic_id": "math_002"}, "agent_id": "get_junyi_topic_by_title", "agent_name": "均一主題標題查詢", "error": None}
     },
     {
         "id": "agent_a_tool",
@@ -87,7 +95,9 @@ PYTHON_TOOLS = [
             "請幫我查一下影片剪輯教學",
             "什麼是 YouTuber？"
         ],
-        "function": agent_a_tool
+        "function": agent_a_tool,
+        "request_example": {"input_text": "請幫我查一下影片剪輯教學"},
+        "response_example": {"result": "這是影片剪輯教學的摘要..."}
     },
     {
         "id": "agent_b_tool",
@@ -101,7 +111,9 @@ PYTHON_TOOLS = [
         "example_queries": [
             "B 網站有什麼新消息？"
         ],
-        "function": agent_b_tool
+        "function": agent_b_tool,
+        "request_example": {"input_text": "b 網站有什麼新消息？"},
+        "response_example": {"result": "B 網站最新消息如下..."}
     },
 ]
 

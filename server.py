@@ -363,6 +363,25 @@ for agent in get_tool_list():
 """
 
     # 註冊 endpoint
+    openapi_extra = {}
+    if agent.get("request_example"):
+        openapi_extra["requestBody"] = {
+            "content": {
+                "application/json": {
+                    "example": agent["request_example"]
+                }
+            }
+        }
+    if agent.get("response_example"):
+        openapi_extra["responses"] = {
+            "200": {
+                "content": {
+                    "application/json": {
+                        "example": agent["response_example"]
+                    }
+                }
+            }
+        }
     router.add_api_route(
         f"/agent/{agent_id}/respond",
         agent_respond,
@@ -370,7 +389,8 @@ for agent in get_tool_list():
         response_model=Dict[str, Any],
         name=name,
         description=doc_md,
-        tags=["Agent"]
+        tags=["Agent"],
+        openapi_extra=openapi_extra if openapi_extra else None
     )
 
 app.include_router(router)
