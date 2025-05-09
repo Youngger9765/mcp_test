@@ -38,6 +38,44 @@
    - **API 查詢與資料整理**：agent 與外部 API 溝通，回傳統一格式
    - **統一 response schema**：所有 API 回傳皆符合統一 schema
 
+### 智慧 Smart Chat 架構圖
+
+```
+┌─────────────┐
+│   前端 UI   │
+│ (index.html)│
+└─────┬───────┘
+      │
+      ▼
+┌──────────────────────────────┐
+│  base.js                     │
+│  1. 維護 history (messages)   │
+│  2. 用戶輸入 push 到 history  │
+│  3. 呼叫 /smart_chat API      │
+└────────────┬─────────────────┘
+             │
+             ▼
+┌────────────────────────────────────────────────────────────┐
+│  /smart_chat (server.py)                                   │
+│  1. 取得完整 history（多輪訊息）                            │
+│  2. 取最近五輪對話（user+assistant 共 10 則，若不足則全取） │
+│  3. 將這 10 則訊息組成 messages 給 intent_analyzer         │
+│  4. intent_analyzer 判斷 intent                            │
+│     ├─ chat → 呼叫 LLM (gpt-4.1-mini)（用完整 history）     │
+│     └─ tool_call → orchestrate（只用最新 user content）     │
+│         └─ LLM 決定 tool_id，執行 function                 │
+│  5. 回覆加上 source 標記，append 到 history                │
+│  6. 回傳新的 history 給前端                                 │
+└────────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────┐
+│   前端 UI   │
+│  4. 顯示回覆│
+│  5. history 繼續累積│
+└─────────────┘
+```
+
 ---
 
 ## Agent 註冊與合併流程
@@ -229,3 +267,59 @@ PYTHONPATH=. pytest --cov=src tests/
 - 移除冗餘 function 與 import，測試與主流程分離
 - plug-in log/debug 機制（log_call decorator）初步完成
 - README checklist、檔案說明、FAQ 同步更新
+
+---
+
+### Smart Chat 關鍵 SPEC
+
+#### 1. API 端點
+- 路徑：`/smart_chat`
+- 方法：POST
+- 輸入參數：
+  - `history`：array，格式為多輪訊息陣列，每則為 `{ role: "user"|"assistant", content: string, [source]: "chat"|"tool" }`
+    - 來源標記 `source` 為 assistant 回覆時才有，user 不需此欄位
+
+#### 2. 訊息處理邏輯
+- 每次呼叫時，前端需傳完整 history
+- 後端會從 history 取最近五輪對話（user+assistant 共 10 則，若不足則全取）
+- 將這 10 則訊息組成 messages，丟給 intent_analyzer 判斷 intent
+
+#### 3. 意圖判斷
+- intent_analyzer 會根據最近五輪上下文判斷 intent
+  - 回傳 `intent: "chat"` 或 `intent: "tool_call"`（或其他）
+
+#### 4. 分流邏輯
+- 若 intent = "chat"：
+  - 用完整 history 呼叫 LLM（gpt-4.1-mini），產生 assistant 回覆
+  - assistant 回覆加上 `source: "chat"`
+- 若 intent = "tool_call"：
+  - 只取最新一則 user content，呼叫 orchestrator
+  - orchestrator 讓 LLM 決定 tool_id，執行對應 function
+  - 工具回覆內容加上 `source: "tool"`
+
+#### 5. 回傳格式
+- 回傳內容：
+  - `history`：array，為原本 history 加上本次 assistant 回覆（含 source 標記）
+  - `intent`：object，為本次 intent_analyzer 的判斷結果（含理由）
+
+#### 6. 關鍵規則
+- 每次回傳的 history，必須包含本次 assistant 回覆，且 assistant 回覆必須有 source 欄位
+- assistant 回覆的 source 必須正確標記為 "chat" 或 "tool"
+- intent_analyzer 必須只用最近五輪對話判斷 intent，不可只看單一 user content
+- orchestrator 只吃 user content，不吃完整 history
+
+#### 7. 錯誤處理
+- 若 history 為空或最後一則不是 user，回傳 error
+- 若 orchestrator 或 LLM 回覆異常，回傳 error 並標記原因
+
+---
+
+### TODO for Smart Chat
+- [ ] 前端送出訊息時，完整累積 history 並呼叫 /smart_chat
+- [ ] 後端 /smart_chat 正確取最近五輪對話給 intent_analyzer
+- [ ] intent_analyzer 判斷 intent 準確，並能根據上下文分流
+- [ ] chat 路徑 assistant 回覆有 source: "chat"
+- [ ] tool_call 路徑 assistant 回覆有 source: "tool"
+- [ ] 回傳的 history 必須正確累積、標記來源
+- [ ] 錯誤情境（如 history 格式錯誤、LLM 回覆異常）能正確回傳 error
+- [ ] 撰寫單元測試覆蓋上述所有情境
