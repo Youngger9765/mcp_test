@@ -46,7 +46,7 @@
    - 負責根據 user query，選擇正確的 agent，調用 agent 的 respond 方法，組合回應
    - 管理多步推理流程
 
-### 智慧 Smart Chat 架構圖
+### 智慧 Smart Chat 架構圖（2025/5 DDD 分層重構後）
 
 ```
 ┌─────────────┐
@@ -60,29 +60,49 @@
 │  1. 維護 history (messages)   │
 │  2. 用戶輸入 push 到 history  │
 │  3. 呼叫 /smart_chat API      │
+│  4. 或呼叫 /agent/single_turn_dispatch、/agent/multi_turn_step│
 └────────────┬─────────────────┘
              │
              ▼
 ┌────────────────────────────────────────────────────────────┐
-│  /smart_chat (server.py)                                   │
-│  1. 取得完整 history（多輪訊息）                            │
-│  2. 取最近五輪對話（user+assistant 共 10 則，若不足則全取） │
-│  3. 將這 10 則訊息組成 messages 給 intent_analyzer         │
-│  4. intent_analyzer 判斷 intent                            │
-│     ├─ chat → 呼叫 LLM (gpt-4.1-mini)（用完整 history）     │
-│     └─ tool_call → orchestrate（只用最新 user content）     │
-│         └─ LLM 決定 tool_id，執行 function                 │
-│  5. 回覆加上 source 標記，append 到 history                │
-│  6. 回傳新的 history 給前端                                 │
-└────────────────────────────────────────────────────────────┘
+│  server.py                                                 │
+│  1. /smart_chat：多輪訊息、意圖判斷、分流（chat/tool_call） │
+│  2. /agent/single_turn_dispatch：單步 agent 調度           │
+│  3. /agent/multi_turn_step：多步推理/多 agent 協作         │
+└────────────┬───────────────────────────────────────────────┘
              │
              ▼
-┌─────────────┐
-│   前端 UI   │
-│  4. 顯示回覆│
-│  5. history 繼續累積│
-└─────────────┘
+┌──────────────────────────────────────────────┐
+│  orchestrator.py                             │
+│  1. 只 import agent，不直接碰 tool           │
+│  2. dispatch_agent_single_turn               │
+│  3. dispatch_agent_multi_turn_step           │
+└────────────┬─────────────────────────────────┘
+             │
+             ▼
+┌──────────────────────────────┐
+│  agents/                     │
+│  1. 每個 agent 封裝一個或多個 tool         │
+│  2. agent class 統一 respond 方法           │
+└────────────┬─────────────────┘
+             │
+             ▼
+┌──────────────┐
+│  tools/      │
+│  純功能 function│
+└──────────────┘
 ```
+
+#### 【新版流程說明】
+1. 前端 base.js 維護完整 history，根據需求呼叫 /smart_chat 或 /agent/single_turn_dispatch、/agent/multi_turn_step。
+2. server.py 根據 API 路徑分流：
+   - /smart_chat：多輪訊息、意圖判斷（intent_analyzer），自動分流 chat/tool_call。
+   - /agent/single_turn_dispatch：單步 agent 調度。
+   - /agent/multi_turn_step：多步推理與多 agent 協作。
+3. orchestrator.py 只負責調度 agent，統一調用 agent 的 respond 方法，不直接碰 tool。
+4. agents/ 目錄下每個 agent class 封裝一個或多個 tool，負責邏輯、狀態、推理。
+5. tools/ 只存放純功能 function，無狀態、無決策。
+6. 回傳內容皆符合統一 schema，前端自動渲染、收合 JSON。
 
 ---
 
