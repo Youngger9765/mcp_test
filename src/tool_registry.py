@@ -40,15 +40,15 @@ PYTHON_TOOLS = [
         "category": "均一",
         "tags": ["教育", "課程樹"],
         "parameters": [
-            {"name": "topic_id", "type": "str", "description": "均一課程樹的根 topic_id，格式如 math_001", "pattern": "^[a-zA-Z0-9_\-]+$"}
+            {"name": "topic_id", "type": "str", "description": "均一課程樹的根 topic_id，格式如 root", "pattern": "^[a-zA-Z0-9_\-]+$"}
         ],
         "example_queries": [
             "查詢 root topic_id 的課程樹",
             "顯示數學科的課程結構"
         ],
         "function": get_junyi_tree,
-        "request_example": {"topic_id": "math_001"},
-        "response_example": {"type": "tree", "content": {"id": "math_001", "children": []}, "meta": {"topic_id": "math_001", "depth": 1}, "agent_id": "get_junyi_tree", "agent_name": "均一樹查詢", "error": None}
+        "request_example": {"topic_id": "root"},
+        "response_example": {"type": "tree", "content": {"id": "root", "children": []}, "meta": {"topic_id": "root", "depth": 1}, "agent_id": "get_junyi_tree", "agent_name": "均一樹查詢", "error": None}
     },
     {
         "id": "get_junyi_topic",
@@ -57,14 +57,14 @@ PYTHON_TOOLS = [
         "category": "均一",
         "tags": ["教育", "均一"],
         "parameters": [
-            {"name": "topic_id", "type": "str", "description": "均一主題的 ID，格式如 math_001", "pattern": "^[a-zA-Z0-9_\-]+$"}
+            {"name": "topic_id", "type": "str", "description": "均一主題的 ID，格式如 root", "pattern": "^[a-zA-Z0-9_\-]+$"}
         ],
         "example_queries": [
-            "查詢 topic_id 為 math_001 的主題內容"
+            "查詢 topic_id 為 root 的主題內容"
         ],
         "function": get_junyi_topic,
-        "request_example": {"topic_id": "math_001"},
-        "response_example": {"type": "topic", "content": {"id": "math_001", "title": "數學"}, "meta": {"topic_id": "math_001"}, "agent_id": "get_junyi_topic", "agent_name": "均一主題查詢", "error": None}
+        "request_example": {"topic_id": "root"},
+        "response_example": {"type": "topic", "content": {"id": "root", "title": "數學"}, "meta": {"topic_id": "root"}, "agent_id": "get_junyi_topic", "agent_name": "均一主題查詢", "error": None}
     },
     {
         "id": "get_junyi_topic_by_title",
