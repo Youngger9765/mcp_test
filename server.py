@@ -59,26 +59,6 @@ async def orchestrate_api(data: OrchestrateRequest):
         )
         return JSONResponse(content={"type": "chat", "reply": reply, "intent": intent_result})
 
-@app.post("/multi_turn_orchestrate")
-async def multi_turn_orchestrate_api(request: Request):
-    data = await request.json()
-    prompt = data.get("prompt", "")
-    max_turns = data.get("max_turns", 5)
-    intent_result = intent_analyzer(prompt)
-    if intent_result.get("intent") == "chat":
-        from src.orchestrator_utils.llm_client import call_llm
-        reply = call_llm(
-            model="gpt-4.1-mini",
-            messages=[
-                {"role": "system", "content": "你是一個親切的中文助理，請用自然語言回答用戶問題。"},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7
-        )
-        return JSONResponse(content={"type": "chat", "reply": reply, "intent": intent_result})
-    result = multi_turn_orchestrate(prompt, max_turns=max_turns)
-    return JSONResponse(content=result)
-
 @app.post("/multi_turn_step")
 async def multi_turn_step_api(request: Request):
     data = await request.json()
