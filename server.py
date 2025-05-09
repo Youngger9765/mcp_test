@@ -1,21 +1,16 @@
 # server.py
-from mcp.server.fastmcp import FastMCP
 from src.orchestrator import orchestrate, multi_turn_orchestrate, multi_turn_step
 import inspect
 import openai
 from fastapi import FastAPI, Request, Body, APIRouter
 from fastapi.responses import JSONResponse, FileResponse
 import uvicorn
-from src.tools import add, get_junyi_tree, get_junyi_topic, get_junyi_topic_by_title, agent_a_tool, agent_b_tool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 from src.tool_registry import get_tool_list
 from pydantic import BaseModel, create_model, Field
 from typing import Any, Dict
-
-# Create an MCP server
-mcp = FastMCP("mcp_local")
 
 app = FastAPI()
 
@@ -148,43 +143,8 @@ async def multi_turn_step_api(request: Request):
 def index():
     return FileResponse(os.path.join(frontend_path, "index.html"))
 
-# Add an addition tool
-@mcp.tool()
-def mcp_tool_add(a: int, b: int):
-    """Add two numbers"""
-    return add(a, b)
-
-
-# Add a dynamic greeting resource
-@mcp.resource("greeting://{name}")
-def get_greeting(name: str):
-    """Get a personalized greeting"""
-    return f"Hello, {name}!"
-
-# 均一樹 as tool
-@mcp.tool()
-def mcp_tool_get_junyi_tree(topic_id: str):
-    """Get the tree of均一"""
-    return get_junyi_tree(topic_id, depth=1)
-
-@mcp.tool()
-def mcp_tool_get_junyi_topic(topic_id: str):
-    """Get the topic of均一"""
-    return get_junyi_topic(topic_id, depth=1)
-
-@mcp.tool()
-def mcp_tool_get_junyi_topic_by_title(title: str):
-    """
-        Get the topic of均一 by title
-        1. 先查詢 topic_id by get_junyi_tree
-        2. 再查詢 topic_id 的 topic by get_junyi_topic
-    """
-    return get_junyi_topic_by_title(title)
-
-
-router = APIRouter()
-
 # 動態產生 agent endpoint
+router = APIRouter()
 for agent in get_tool_list():
     agent_id = agent["id"]
     name = agent.get("name", agent_id)
