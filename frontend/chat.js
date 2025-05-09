@@ -25,7 +25,7 @@ function onUserInput(userQuery, topicId = null) {
         lastAgentId = result.agent_id;
         lastMeta = result.meta;
     });
-}
+} 
 
 function renderText(text) {
     const msgDiv = document.createElement("div");

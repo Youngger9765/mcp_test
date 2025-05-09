@@ -133,6 +133,9 @@ async function handleUserInput() {
     } else if (result.action === "finish") {
       addMsg(`<div class='summary-info'><b>總結：</b>${result.reason}</div>`, "bot", "summary-msg");
       finished = true;
+    } else if (result.action === "chat") {
+      addMsg(result.reply, "bot");
+      finished = true;
     } else {
       addMsg(`<b>錯誤：</b>${result.message || '未知錯誤'}`, "bot", "error-msg");
       finished = true;

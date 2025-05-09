@@ -11,6 +11,7 @@ import os
 from src.tool_registry import get_tool_list
 from pydantic import BaseModel, create_model, Field
 from typing import Any, Dict
+from src.orchestrator_utils.intent_analyzer import intent_analyzer
 
 app = FastAPI()
 
@@ -40,8 +41,23 @@ class QueryRequest(BaseModel):
 
 @app.post("/orchestrate")
 async def orchestrate_api(data: OrchestrateRequest):
-    result = orchestrate(data.prompt)
-    return JSONResponse(content=result)
+    intent_result = intent_analyzer(data.prompt)
+    if intent_result.get("intent") == "tool_call":
+        result = orchestrate(data.prompt)
+        result["intent"] = intent_result
+        return JSONResponse(content=result)
+    else:
+        # 直接用 LLM 回 chat
+        from src.orchestrator_utils.llm_client import call_llm
+        reply = call_llm(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": "你是一個親切的中文助理，請用自然語言回答用戶問題。"},
+                {"role": "user", "content": data.prompt}
+            ],
+            temperature=0.7
+        )
+        return JSONResponse(content={"type": "chat", "reply": reply, "intent": intent_result})
 
 @app.post("/query")
 async def ask(data: QueryRequest):
@@ -113,6 +129,18 @@ async def multi_turn_orchestrate_api(request: Request):
     data = await request.json()
     prompt = data.get("prompt", "")
     max_turns = data.get("max_turns", 5)
+    intent_result = intent_analyzer(prompt)
+    if intent_result.get("intent") == "chat":
+        from src.orchestrator_utils.llm_client import call_llm
+        reply = call_llm(
+            model="gpt-4.1-mini",
+            messages=[
+                {"role": "system", "content": "你是一個親切的中文助理，請用自然語言回答用戶問題。"},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        return JSONResponse(content={"type": "chat", "reply": reply, "intent": intent_result})
     result = multi_turn_orchestrate(prompt, max_turns=max_turns)
     return JSONResponse(content=result)
 
@@ -121,8 +149,21 @@ async def multi_turn_step_api(request: Request):
     data = await request.json()
     history = data.get("history", [])
     query = data.get("query", "")
-    # 自動 fallback：若 history 為空且有 query，先查詢一次
+    # intent 判斷
     if not history and query:
+        intent_result = intent_analyzer(query)
+        if intent_result.get("intent") == "chat":
+            from src.orchestrator_utils.llm_client import call_llm
+            reply = call_llm(
+                model="gpt-4.1-mini",
+                messages=[
+                    {"role": "system", "content": "你是一個親切的中文助理，請用自然語言回答用戶問題。"},
+                    {"role": "user", "content": query}
+                ],
+                temperature=0.7
+            )
+            return JSONResponse(content={"action": "chat", "reply": reply, "intent": intent_result})
+        # 否則才進入工具鏈
         first_result = orchestrate(query)
         # 修正：轉換格式
         if first_result.get("type") == "result":
