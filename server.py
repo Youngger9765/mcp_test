@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 from src.tool_registry import get_tool_list
 from pydantic import BaseModel, create_model, Field
-from typing import Any, Dict
+from typing import Any, Dict, List
 from src.orchestrator_utils.intent_analyzer import intent_analyzer
 from src.orchestrator_utils.llm_client import call_llm
 
@@ -40,6 +40,12 @@ class QueryRequest(BaseModel):
     last_meta: dict = None
     topic_id: str = None
 
+class ChatRequest(BaseModel):
+    history: List[Dict[str, str]]
+
+class HistoryAnswerRequest(BaseModel):
+    history: List[Dict[str, str]]
+
 @app.post("/analyze_intent")
 async def analyze_intent_api(data: OrchestrateRequest):
     intent_result = intent_analyzer(data.prompt)
@@ -57,13 +63,10 @@ async def analyze_intent_api(data: OrchestrateRequest):
     return {"intent": intent, "suggested_api": api, "reason": intent_result.get("reason", "")}
 
 @app.post("/chat")
-async def chat_api(data: OrchestrateRequest):
+async def chat_api(data: ChatRequest):
     reply = call_llm(
         model="gpt-4.1-mini",
-        messages=[
-            {"role": "system", "content": "你是一個親切的中文助理，請用自然語言回答用戶問題。"},
-            {"role": "user", "content": data.prompt}
-        ],
+        messages=data.history,
         temperature=0.7
     )
     return {"type": "chat", "reply": reply}
@@ -84,6 +87,30 @@ async def agent_multi_turn_step_api(request: Request):
         return JSONResponse(content={"message": "請先查詢一次，再進行多輪推理。"})
     result = dispatch_agent_multi_turn_step(history, query)
     return JSONResponse(content=result)
+
+@app.post("/history_answer")
+async def history_answer_api(data: HistoryAnswerRequest):
+    system_prompt = (
+        "你是一個對話摘要助理。請根據下列多輪對話與工具查詢歷程，找出能回答用戶最新問題的最佳依據，並用自然語言說明答案與理由。\n"
+        "- history 可能包含 user、assistant、tool 三種角色。\n"
+        "- 請先找出 history 中最能回答 user 最新問題的內容，然後用自然語言回覆，並說明你為什麼這樣判斷。\n"
+        "- 如果 history 沒有明確答案，請誠實說明。\n"
+        "請用 JSON 格式回覆：{\"answer\": \"...\", \"reason\": \"...\"}"
+    )
+    reply = call_llm(
+        model="gpt-4.1-mini",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": str(data.history)}
+        ],
+        temperature=0.3
+    )
+    import json
+    try:
+        result = json.loads(reply)
+        return result
+    except Exception:
+        return {"answer": reply, "reason": "LLM 回傳格式解析失敗，已直接顯示原文"}
 
 @app.get("/")
 def index():

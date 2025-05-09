@@ -66,29 +66,42 @@ function summarizeResult(result) {
   return `<pre>${JSON.stringify(result, null, 2).slice(0, 300)}...</pre>`;
 }
 
+let history = [];
+
 async function handleUserInput() {
   const input = document.getElementById("user-input");
   const text = input.value.trim();
   if (!text) return;
   addMsg("你：" + text, "user");
+  history.push({ role: "user", content: text });
   input.value = "";
   input.disabled = true;
   document.getElementById("send-btn").disabled = true;
 
   showLoading();
-  // 1. 先呼叫 /analyze_intent
+  // 1. 先呼叫 /analyze_intent，將 history 包裝成 prompt
+  function historyToPrompt(historyArr) {
+    return historyArr.map(h => {
+      if (h.role === "user") return `User: ${h.content}`;
+      if (h.role === "assistant") return `Assistant: ${h.content}`;
+      if (h.role === "tool") return `Tool: ${h.content}`;
+      return '';
+    }).join("\n");
+  }
+  const intentPrompt = historyToPrompt(history);
   let intentRes = await fetch("http://localhost:8000/analyze_intent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: text })
+    body: JSON.stringify({ prompt: intentPrompt })
   });
   intentRes = await intentRes.json();
+  console.log("intentRes", intentRes);
   hideLoading();
-  // 顯示意圖 label for debug（小 label + 細節收合）
+  // 僅顯示意圖判斷，不 push 到 history
   addMsg(`
     <span class='intent-label'>意圖：<b>${intentRes.intent}</b></span>
     <details style="margin-top:2px;"><summary>意圖判斷細節</summary>
-      <div style="font-size:13px;line-height:1.6;padding:4px 0 0 8px;">${intentRes.reason ? intentRes.reason : '(無)'}</div>
+      <div style="font-size:13px;line-height:1.6;padding:4px 0 0 8px;">${(typeof intentRes.reason !== 'undefined' && intentRes.reason !== null && intentRes.reason !== '') ? intentRes.reason : '(無)'}</div>
     </details>
   `, "bot", "intent-debug");
 
@@ -98,11 +111,27 @@ async function handleUserInput() {
     let chatRes = await fetch("http://localhost:8000/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: text })
+      body: JSON.stringify({ history })
     });
     chatRes = await chatRes.json();
     hideLoading();
     addMsg(chatRes.reply, "bot");
+    history.push({ role: "assistant", content: chatRes.reply });
+    input.disabled = false;
+    document.getElementById("send-btn").disabled = false;
+    input.focus();
+    return;
+  } else if (intentRes.intent === "history_answer") {
+    // 呼叫 /history_answer，讓 LLM 幫忙摘要
+    showLoading();
+    let res = await fetch("http://localhost:8000/history_answer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ history })
+    });
+    let result = await res.json();
+    hideLoading();
+    addMsg(`<b>根據歷史紀錄，答案是：</b><br>${result.answer}<br><details><summary>判斷理由</summary>${result.reason}</details>`, "bot", "history-answer");
     input.disabled = false;
     document.getElementById("send-btn").disabled = false;
     input.focus();
@@ -136,9 +165,9 @@ async function handleUserInput() {
     }
 
     // 進行 multi_turn_step，顯示每一輪歷程
-    let history = [];
+    let toolSteps = [];
     if (orchestrateRes.type === "result" && orchestrateRes.tool && orchestrateRes.input) {
-      history.push({
+      toolSteps.push({
         tool_id: orchestrateRes.tool,
         parameters: orchestrateRes.input,
         result: orchestrateRes.results[0],
@@ -152,7 +181,7 @@ async function handleUserInput() {
       const res = await fetch("http://localhost:8000/agent/multi_turn_step", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ history, query: currentQuery })
+        body: JSON.stringify({ history: toolSteps, query: currentQuery })
       });
       const result = await res.json();
       hideLoading();
@@ -166,13 +195,21 @@ async function handleUserInput() {
           </div>`,
           "bot"
         );
-        history.push(result.step);
+        toolSteps.push(result.step);
         currentQuery = `剛剛查到：${JSON.stringify(result.step.result).slice(0, 200)}...，請問還需要查什麼嗎？`;
       } else if (result.action === "finish") {
+        // 結束時 summarize 所有 tool 步驟，push 到 history
+        const summary = toolSteps.map((step, idx) => {
+          let title = step.agent_name || step.tool_id || step.agent_id || step.type || `步驟${idx+1}`;
+          return `【${title}】${summarizeResult(step.result)}`;
+        }).join("\n");
         addMsg(`<div class='summary-info'><b>總結：</b>${result.reason}</div>`, "bot", "summary-msg");
+        // 將 summary 作為 tool 歷程 push 到 history
+        history.push({ role: "tool", content: `${result.reason}\n${summary}` });
         finished = true;
       } else if (result.action === "chat") {
         addMsg(result.reply, "bot");
+        history.push({ role: "assistant", content: result.reply });
         finished = true;
       } else {
         addMsg(`<b>錯誤：</b>${result.message || '未知錯誤'}`, "bot", "error-msg");
