@@ -12,6 +12,7 @@ from src.tool_registry import get_tool_list
 from pydantic import BaseModel, create_model, Field
 from typing import Any, Dict
 from src.orchestrator_utils.intent_analyzer import intent_analyzer
+from src.orchestrator_utils.llm_client import call_llm
 
 app = FastAPI()
 
@@ -39,57 +40,46 @@ class QueryRequest(BaseModel):
     last_meta: dict = None
     topic_id: str = None
 
+@app.post("/analyze_intent")
+async def analyze_intent_api(data: OrchestrateRequest):
+    intent_result = intent_analyzer(data.prompt)
+    print("[analyze_intent] intent_result:", intent_result)
+    # 根據 intent 給建議 API 路徑
+    intent = intent_result.get("intent")
+    if intent == "chat":
+        api = "/chat"
+    elif intent == "tool_call":
+        api = "/agent/single_turn_dispatch"
+    elif intent == "multi_turn":
+        api = "/agent/multi_turn_step"
+    else:
+        api = None
+    return {"intent": intent, "suggested_api": api, "reason": intent_result.get("reason", "")}
+
+@app.post("/chat")
+async def chat_api(data: OrchestrateRequest):
+    reply = call_llm(
+        model="gpt-4.1-mini",
+        messages=[
+            {"role": "system", "content": "你是一個親切的中文助理，請用自然語言回答用戶問題。"},
+            {"role": "user", "content": data.prompt}
+        ],
+        temperature=0.7
+    )
+    return {"type": "chat", "reply": reply}
+
 @app.post("/agent/single_turn_dispatch")
 async def agent_single_turn_dispatch_api(data: OrchestrateRequest):
-    intent_result = intent_analyzer(data.prompt)
-    if intent_result.get("intent") == "tool_call":
-        result = dispatch_agent_single_turn(data.prompt)
-        result["intent"] = intent_result
-        return JSONResponse(content=result)
-    else:
-        # 直接用 LLM 回 chat
-        from src.orchestrator_utils.llm_client import call_llm
-        reply = call_llm(
-            model="gpt-4.1-mini",
-            messages=[
-                {"role": "system", "content": "你是一個親切的中文助理，請用自然語言回答用戶問題。"},
-                {"role": "user", "content": data.prompt}
-            ],
-            temperature=0.7
-        )
-        return JSONResponse(content={"type": "chat", "reply": reply, "intent": intent_result})
+    # 僅負責 agent 調度，不做 intent 判斷
+    result = dispatch_agent_single_turn(data.prompt)
+    return JSONResponse(content=result)
 
 @app.post("/agent/multi_turn_step")
 async def agent_multi_turn_step_api(request: Request):
     data = await request.json()
     history = data.get("history", [])
     query = data.get("query", "")
-    # intent 判斷
-    if not history and query:
-        intent_result = intent_analyzer(query)
-        if intent_result.get("intent") == "chat":
-            from src.orchestrator_utils.llm_client import call_llm
-            reply = call_llm(
-                model="gpt-4.1-mini",
-                messages=[
-                    {"role": "system", "content": "你是一個親切的中文助理，請用自然語言回答用戶問題。"},
-                    {"role": "user", "content": query}
-                ],
-                temperature=0.7
-            )
-            return JSONResponse(content={"action": "chat", "reply": reply, "intent": intent_result})
-        # 否則才進入工具鏈
-        first_result = dispatch_agent_single_turn(query)
-        # 修正：轉換格式
-        if first_result.get("type") == "result":
-            history = [{
-                "tool_id": first_result.get("tool"),
-                "parameters": first_result.get("input"),
-                "result": first_result.get("results", [{}])[0],
-                "reason": "初次查詢"
-            }]
-        else:
-            return JSONResponse(content={"action": "error", "message": first_result.get("message", "查詢失敗")})
+    # 僅負責多步推理，不做 intent 判斷
     if not history:
         return JSONResponse(content={"message": "請先查詢一次，再進行多輪推理。"})
     result = dispatch_agent_multi_turn_step(history, query)

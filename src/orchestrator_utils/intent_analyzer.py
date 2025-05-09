@@ -8,7 +8,9 @@ def build_intent_prompt(user_input: str) -> str:
 - 只有在用戶明確要求查詢、計算、搜尋、工具操作時，才回 tool_call。
 用戶輸入：
 {user_input}
-請用 JSON 格式回覆，例如：{{"intent": "tool_call", "reason": "用戶明確要求查詢或操作"}}
+請用 JSON 格式回覆，例如：
+{{"intent": "chat", "reason": "用戶只是打招呼、問候、閒聊、情感表達"}}
+{{"intent": "tool_call", "reason": "用戶明確要求查詢或操作"}}
 """
 
 def intent_analyzer(user_input: str) -> dict:

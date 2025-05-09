@@ -75,80 +75,121 @@ async function handleUserInput() {
   input.disabled = true;
   document.getElementById("send-btn").disabled = true;
 
-  // 1. 先呼叫 /agent/single_turn_dispatch 顯示 agent 回應
   showLoading();
-  let orchestrateRes = await fetch("http://localhost:8000/agent/single_turn_dispatch", {
+  // 1. 先呼叫 /analyze_intent
+  let intentRes = await fetch("http://localhost:8000/analyze_intent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt: text })
   });
-  orchestrateRes = await orchestrateRes.json();
+  intentRes = await intentRes.json();
   hideLoading();
-  if (orchestrateRes.type === "result" && orchestrateRes.results && orchestrateRes.results.length > 0) {
-    const r = orchestrateRes.results[0];
-    addMsg(
-      `<div class='card agent-card'>
-        <div class='agent-title'>【${r.agent_name || r.tool || r.agent_id || r.type || "Agent 回應"}】</div>
-        <div class='agent-param'><b>參數：</b>${JSON.stringify(orchestrateRes.input)}</div>
-        <div class='agent-content'><b>回應：</b>${summarizeResult(r)}</div>
-      </div>`,
-      "bot"
-    );
-  } else if (orchestrateRes.type === "error") {
-    addMsg(`<b>錯誤：</b>${orchestrateRes.message || '未知錯誤'}`, "bot", "error-msg");
+  // 顯示意圖 label for debug（小 label + 細節收合）
+  addMsg(`
+    <span class='intent-label'>意圖：<b>${intentRes.intent}</b></span>
+    <details style="margin-top:2px;"><summary>意圖判斷細節</summary>
+      <div style="font-size:13px;line-height:1.6;padding:4px 0 0 8px;">${intentRes.reason ? intentRes.reason : '(無)'}</div>
+    </details>
+  `, "bot", "intent-debug");
+
+  if (intentRes.intent === "chat") {
+    // 純聊天
+    showLoading();
+    let chatRes = await fetch("http://localhost:8000/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: text })
+    });
+    chatRes = await chatRes.json();
+    hideLoading();
+    addMsg(chatRes.reply, "bot");
+    input.disabled = false;
+    document.getElementById("send-btn").disabled = false;
+    input.focus();
+    return;
+  } else if (intentRes.intent === "tool_call") {
+    // 工具調度（原本 agent 流程）
+    showLoading();
+    let orchestrateRes = await fetch("http://localhost:8000/agent/single_turn_dispatch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: text })
+    });
+    orchestrateRes = await orchestrateRes.json();
+    hideLoading();
+    if (orchestrateRes.type === "result" && orchestrateRes.results && orchestrateRes.results.length > 0) {
+      const r = orchestrateRes.results[0];
+      addMsg(
+        `<div class='card agent-card'>
+          <div class='agent-title'>【${r.agent_name || r.tool || r.agent_id || r.type || "Agent 回應"}】</div>
+          <div class='agent-param'><b>參數：</b>${JSON.stringify(orchestrateRes.input)}</div>
+          <div class='agent-content'><b>回應：</b>${summarizeResult(r)}</div>
+        </div>`,
+        "bot"
+      );
+    } else if (orchestrateRes.type === "error") {
+      addMsg(`<b>錯誤：</b>${orchestrateRes.message || '未知錯誤'}`, "bot", "error-msg");
+      input.disabled = false;
+      document.getElementById("send-btn").disabled = false;
+      input.focus();
+      return;
+    }
+
+    // 進行 multi_turn_step，顯示每一輪歷程
+    let history = [];
+    if (orchestrateRes.type === "result" && orchestrateRes.tool && orchestrateRes.input) {
+      history.push({
+        tool_id: orchestrateRes.tool,
+        parameters: orchestrateRes.input,
+        result: orchestrateRes.results[0],
+        reason: "初次查詢"
+      });
+    }
+    let currentQuery = text;
+    let finished = false;
+    while (!finished) {
+      showLoading();
+      const res = await fetch("http://localhost:8000/agent/multi_turn_step", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ history, query: currentQuery })
+      });
+      const result = await res.json();
+      hideLoading();
+      if (result.action === "call_tool" && result.step) {
+        addMsg(
+          `<div class='card agent-card'>
+            <div class='agent-title'>【${result.step.agent_name || result.step.tool_id || result.step.agent_id || result.step.type || "Agent"}】</div>
+            <div class='agent-param'><b>參數：</b>${JSON.stringify(result.step.parameters)}</div>
+            <div class='agent-content'><b>回應：</b>${summarizeResult(result.step.result)}</div>
+            ${result.step.reason ? `<div class='llm-reason'><b>規劃理由：</b>${result.step.reason}</div>` : ""}
+          </div>`,
+          "bot"
+        );
+        history.push(result.step);
+        currentQuery = `剛剛查到：${JSON.stringify(result.step.result).slice(0, 200)}...，請問還需要查什麼嗎？`;
+      } else if (result.action === "finish") {
+        addMsg(`<div class='summary-info'><b>總結：</b>${result.reason}</div>`, "bot", "summary-msg");
+        finished = true;
+      } else if (result.action === "chat") {
+        addMsg(result.reply, "bot");
+        finished = true;
+      } else {
+        addMsg(`<b>錯誤：</b>${result.message || '未知錯誤'}`, "bot", "error-msg");
+        finished = true;
+      }
+    }
+    input.disabled = false;
+    document.getElementById("send-btn").disabled = false;
+    input.focus();
+    return;
+  } else {
+    addMsg(`<b>無法判斷意圖：</b>${intentRes.reason || '未知原因'}`, "bot", "error-msg");
     input.disabled = false;
     document.getElementById("send-btn").disabled = false;
     input.focus();
     return;
   }
-
-  // 2. 再進行 multi_turn_step，顯示每一輪歷程
-  let history = [];
-  if (orchestrateRes.type === "result" && orchestrateRes.tool && orchestrateRes.input) {
-    history.push({
-      tool_id: orchestrateRes.tool,
-      parameters: orchestrateRes.input,
-      result: orchestrateRes.results[0],
-      reason: "初次查詢"
-    });
-  }
-  let currentQuery = text;
-  let finished = false;
-  while (!finished) {
-    showLoading();
-    const res = await fetch("http://localhost:8000/agent/multi_turn_step", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ history, query: currentQuery })
-    });
-    const result = await res.json();
-    hideLoading();
-    if (result.action === "call_tool" && result.step) {
-      addMsg(
-        `<div class='card agent-card'>
-          <div class='agent-title'>【${result.step.agent_name || result.step.tool_id || result.step.agent_id || result.step.type || "Agent"}】</div>
-          <div class='agent-param'><b>參數：</b>${JSON.stringify(result.step.parameters)}</div>
-          <div class='agent-content'><b>回應：</b>${summarizeResult(result.step.result)}</div>
-          ${result.step.reason ? `<div class='llm-reason'><b>規劃理由：</b>${result.step.reason}</div>` : ""}
-        </div>`,
-        "bot"
-      );
-      history.push(result.step);
-      currentQuery = `剛剛查到：${JSON.stringify(result.step.result).slice(0, 200)}...，請問還需要查什麼嗎？`;
-    } else if (result.action === "finish") {
-      addMsg(`<div class='summary-info'><b>總結：</b>${result.reason}</div>`, "bot", "summary-msg");
-      finished = true;
-    } else if (result.action === "chat") {
-      addMsg(result.reply, "bot");
-      finished = true;
-    } else {
-      addMsg(`<b>錯誤：</b>${result.message || '未知錯誤'}`, "bot", "error-msg");
-      finished = true;
-    }
-  }
-  input.disabled = false;
-  document.getElementById("send-btn").disabled = false;
-  input.focus();
 }
 
 window.selectAllAgents = function(flag) {

@@ -2,6 +2,18 @@
 
 ---
 
+# 文件架構
+
+本文件說明 MCP 多 agent 系統的 DDD 分層、對話流程、API 設計、agent 註冊、維護建議與常見問題，並同步記錄每次 refactor 的重點與 changelog。
+
+主要內容分為：
+- 架構分層與設計原則
+- 對話流程與 API 路徑
+- Agent 註冊與自動合併
+- 前後端 schema 與回傳格式
+- 測試與維護建議
+- Changelog 追蹤每次重大調整
+
 # MCP 架構說明文件
 
 ## 2025/5/8 DDD 重構重點
@@ -51,12 +63,13 @@
 #### 【對話流程說明】
 1. **用戶輸入**：
    - 前端（index.html + base.js）維護完整 history，將用戶輸入 push 到訊息區。
-2. **API 請求**：
-   - 前端根據需求呼叫 `/agent/single_turn_dispatch`（單步查詢）或 `/agent/multi_turn_step`（多步推理）。
-3. **意圖判斷與分流**：
-   - server.py 於 `/agent/single_turn_dispatch` 先用 intent_analyzer 判斷用戶輸入意圖：
-     - 若 intent = chat，直接呼叫 LLM（如 gpt-4.1-mini）生成回覆。
-     - 若 intent = tool_call，則交由 orchestrator 調度 agent 處理。
+2. **意圖判斷**：
+   - 前端呼叫 `/analyze_intent`，取得 intent（chat、tool_call...）與 reason。
+   - 前端顯示意圖 label 與細節（可收合）。
+3. **API 分流**：
+   - 若 intent = chat，前端呼叫 `/chat`，由 LLM 回覆。
+   - 若 intent = tool_call，前端呼叫 `/agent/single_turn_dispatch`，進入 agent 調度與多步推理（如需再進 `/agent/multi_turn_step`）。
+   - 其他 intent 則顯示錯誤或 fallback。
 4. **Orchestrator 調度**：
    - orchestrator.py 只 import agent，不直接碰 tool，統一調用 agent 的 respond 方法。
    - 單步查詢：dispatch_agent_single_turn。
@@ -81,15 +94,22 @@
 │  base.js                     │
 │  1. 維護 history (messages)   │
 │  2. 用戶輸入 push 到 history  │
-│  3. 呼叫 /agent/single_turn_dispatch、/agent/multi_turn_step│
+│  3. 呼叫 /analyze_intent      │
+│  4. 顯示意圖 label/細節       │
+│  5. 根據 intent 分流：         │
+│     ├─ chat → /chat           │
+│     └─ tool_call → /agent/single_turn_dispatch
+│         （如需多步推理再進 /agent/multi_turn_step）│
 └────────────┬─────────────────┘
              │
              ▼
 ┌────────────────────────────────────────────────────────────┐
 │  server.py                                                 │
-│  1. /agent/single_turn_dispatch：單步 agent 調度           │
-│  2. /agent/multi_turn_step：多步推理/多 agent 協作         │
-│  3. 內部先 intent_analyzer 判斷 chat/tool_call            │
+│  1. /analyze_intent：意圖判斷，回傳 intent 與 reason      │
+│  2. /chat：純 LLM chat 回覆                                │
+│  3. /agent/single_turn_dispatch：單步 agent 調度           │
+│  4. /agent/multi_turn_step：多步推理/多 agent 協作         │
+│  5. 各 API 責任單一，分層明確                             │
 └────────────┬───────────────────────────────────────────────┘
              │
              ▼
@@ -318,61 +338,9 @@ PYTHONPATH=. pytest --cov=src tests/
 - README checklist、檔案說明、FAQ 同步更新
 
 ### 2025/5/8
-- 採用 DDD 分層重構，明確區分 tools、agents、orchestrator 三層，提升可維護性與擴充性。
-- README 架構、FAQ、分層說明同步更新。
-
----
-
-### Smart Chat 關鍵 SPEC
-
-#### 1. API 端點
-- 路徑：`/smart_chat`
-- 方法：POST
-- 輸入參數：
-  - `history`：array，格式為多輪訊息陣列，每則為 `{ role: "user"|"assistant", content: string, [source]: "chat"|"tool" }`
-    - 來源標記 `source` 為 assistant 回覆時才有，user 不需此欄位
-
-#### 2. 訊息處理邏輯
-- 每次呼叫時，前端需傳完整 history
-- 後端會從 history 取最近五輪對話（user+assistant 共 10 則，若不足則全取）
-- 將這 10 則訊息組成 messages，丟給 intent_analyzer 判斷 intent
-
-#### 3. 意圖判斷
-- intent_analyzer 會根據最近五輪上下文判斷 intent
-  - 回傳 `intent: "chat"` 或 `intent: "tool_call"`（或其他）
-
-#### 4. 分流邏輯
-- 若 intent = "chat"：
-  - 用完整 history 呼叫 LLM（gpt-4.1-mini），產生 assistant 回覆
-  - assistant 回覆加上 `source: "chat"`
-- 若 intent = "tool_call"：
-  - 只取最新一則 user content，呼叫 orchestrator
-  - orchestrator 讓 LLM 決定 tool_id，執行對應 function
-  - 工具回覆內容加上 `source: "tool"`
-
-#### 5. 回傳格式
-- 回傳內容：
-  - `history`：array，為原本 history 加上本次 assistant 回覆（含 source 標記）
-  - `intent`：object，為本次 intent_analyzer 的判斷結果（含理由）
-
-#### 6. 關鍵規則
-- 每次回傳的 history，必須包含本次 assistant 回覆，且 assistant 回覆必須有 source 欄位
-- assistant 回覆的 source 必須正確標記為 "chat" 或 "tool"
-- intent_analyzer 必須只用最近五輪對話判斷 intent，不可只看單一 user content
-- orchestrator 只吃 user content，不吃完整 history
-
-#### 7. 錯誤處理
-- 若 history 為空或最後一則不是 user，回傳 error
-- 若 orchestrator 或 LLM 回覆異常，回傳 error 並標記原因
-
----
-
-### TODO for Smart Chat
-- [ ] 前端送出訊息時，完整累積 history 並呼叫 /smart_chat
-- [ ] 後端 /smart_chat 正確取最近五輪對話給 intent_analyzer
-- [ ] intent_analyzer 判斷 intent 準確，並能根據上下文分流
-- [ ] chat 路徑 assistant 回覆有 source: "chat"
-- [ ] tool_call 路徑 assistant 回覆有 source: "tool"
-- [ ] 回傳的 history 必須正確累積、標記來源
-- [ ] 錯誤情境（如 history 格式錯誤、LLM 回覆異常）能正確回傳 error
-- [ ] 撰寫單元測試覆蓋上述所有情境
+- 對話流 refactor：所有 user 輸入先經過 `/analyze_intent`，根據 intent 分流到 `/chat` 或 agent 調度 API。
+- 前端 base.js 新增意圖 label 與 <details> 收合顯示，方便 debug 與驗證 LLM 判斷。
+- `/analyze_intent` API 回傳 intent 與 reason，前端可完整顯示。
+- `/chat`、`/agent/single_turn_dispatch`、`/agent/multi_turn_step` 責任單一，分層明確。
+- README.md 同步補充文件架構、分層說明、對話流程圖與分流邏輯。
+- 完全落實 DDD 分層、單一職責、前後端 schema 統一、可追蹤意圖判斷。
