@@ -12,9 +12,33 @@ body {
   padding: 32px 28px 24px 28px;
 }
 .msg {
+  display: flex;
   margin: 18px 0;
-  font-size: 1.15em;
+}
+.msg.user {
+  justify-content: flex-end;
+}
+.msg.bot {
+  justify-content: flex-start;
+}
+.bubble {
+  max-width: 75%;
+  padding: 14px 18px;
+  border-radius: 18px;
+  font-size: 1.1em;
   line-height: 1.7;
+  box-shadow: 0 2px 8px #0001;
+  word-break: break-word;
+}
+.user .bubble {
+  background: #e3f2fd;
+  color: #1976d2;
+  border-bottom-right-radius: 6px;
+}
+.bot .bubble {
+  background: #f1f8e9;
+  color: #388e3c;
+  border-bottom-left-radius: 6px;
 }
 .user {
   color: #1976d2;

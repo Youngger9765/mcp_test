@@ -25,4 +25,15 @@ function onUserInput(userQuery, topicId = null) {
         lastAgentId = result.agent_id;
         lastMeta = result.meta;
     });
+}
+
+function renderText(text) {
+    const msgDiv = document.createElement("div");
+    msgDiv.className = "msg bot";
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.innerHTML = text;
+    msgDiv.appendChild(bubble);
+    document.getElementById("messages").appendChild(msgDiv);
+    document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
 } 

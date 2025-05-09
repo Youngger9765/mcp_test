@@ -10,9 +10,12 @@ function setPrompt(text) {
 function addMsg(text, sender = "bot", extraClass = "") {
   const msgDiv = document.createElement("div");
   msgDiv.className = "msg " + sender + (extraClass ? " " + extraClass : "");
-  msgDiv.innerHTML = text;
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.innerHTML = text;
+  msgDiv.appendChild(bubble);
   document.getElementById("messages").appendChild(msgDiv);
-  document.getElementById("chat").scrollTop = 99999;
+  document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
   return msgDiv;
 }
 
