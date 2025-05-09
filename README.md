@@ -172,6 +172,27 @@
         respond: src.agent_registry.AgentA().respond
     ```
 
+  - **routes 區塊**
+    - `routes` 用於定義多 agent 調度的預設流程（如 pipeline），可指定多個 agent 依序處理同一 query。
+    - 每個 route 可包含多個 step，每個 step 指定 agent 及其輸入格式。
+    - 範例：
+      ```yaml
+      routes:
+        default:
+          steps:
+            - agent: agent_a
+              input: "{{query}}"
+            - agent: agent_b
+              input: "{{query}}"
+            - agent: junyi_tree_agent
+              input: "{{query}}"
+            - agent: junyi_topic_agent
+              input: "{{query}}"
+      ```
+    - 代表預設會依序呼叫 agent_a → agent_b → junyi_tree_agent → junyi_topic_agent，每個 agent 都會收到 query 作為輸入。
+    - 若有多種 route，可依需求新增不同名稱的 routes。
+    - routes 設定可讓非工程師用 YAML 快速調整多 agent pipeline。
+
 - **Python 註冊**（for 工程師）
   - 在 `src/agent_registry.py` 撰寫 class/function
   - 於 `get_python_agents()` 回傳 agent dict
