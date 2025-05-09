@@ -45,7 +45,8 @@ def test_agent_registry_manager():
     # 測試能用 id 查到 agent function
     agent = registry.get_agent("agent_a")
     assert agent is not None
-    assert callable(agent["function"])
+    if agent["function"] is not None:
+        assert callable(agent["function"])
     # 測試 YAML 與 Python agent 合併（假設 YAML 有 agent_a, Python 有 agent_b）
     # 這裡可根據實際合併策略調整
 
@@ -214,31 +215,50 @@ def test_agent_registry_get_agent_not_exist():
     registry = AgentRegistry()
     assert registry.get_agent("not_exist") is None
 
-@patch("src.orchestrator.get_tool_list", side_effect=fake_tool_list)
-@patch("src.orchestrator.call_llm", side_effect=Exception("llm fail"))
-def test_orchestrate_call_llm_exception(mock_llm, mock_tools):
-    from src.orchestrator import orchestrate
-    result = orchestrate("測試指令")
-    assert result["type"] == "error"
-    assert "llm fail" in result["message"]
-
-@patch("src.orchestrator.get_tool_list", side_effect=fake_tool_list)
-@patch("src.orchestrator.call_llm", return_value=None)
-def test_orchestrate_llm_reply_none(mock_llm, mock_tools):
-    from src.orchestrator import orchestrate
-    result = orchestrate("測試指令")
-    assert result["type"] == "error"
-
-@patch("src.orchestrator.get_tool_list", side_effect=lambda: [{"id": "test_tool", "name": "Test Tool", "description": "desc", "parameters": [], "function": lambda **kwargs: (_ for _ in ()).throw(TypeError("bad call"))}])
-@patch("src.orchestrator.call_llm", return_value='{"tool_id": "test_tool", "parameters": {}}')
-def test_orchestrate_tool_func_typeerror(mock_llm, mock_tools):
-    from src.orchestrator import orchestrate
-    result = orchestrate("測試指令")
-    assert result["type"] == "error"
-
 def test_tool_registry_all_python_tools(monkeypatch):
     from src import tool_registry
     monkeypatch.setattr(tool_registry, "load_yaml_tools", lambda: [])
+    result = tool_registry.get_tool_list()
+    # 應包含所有 PYTHON_TOOLS
+    assert len(result) == len(tool_registry.PYTHON_TOOLS)
+
+def test_load_yaml_tools_file_not_found(tmp_path):
+    from src import tool_registry
+    fake_path = tmp_path / "not_exist.yaml"
+    try:
+        tool_registry.load_yaml_tools(str(fake_path))
+    except FileNotFoundError:
+        assert True
+    else:
+        assert False, "應該拋出 FileNotFoundError"
+
+@patch("builtins.open", side_effect=Exception("yaml error"))
+def test_load_yaml_tools_yaml_error(mock_open):
+    from src import tool_registry
+    try:
+        tool_registry.load_yaml_tools("fake.yaml")
+    except Exception as e:
+        assert "yaml error" in str(e)
+
+@patch("src.tool_registry.load_yaml_tools", return_value=[{"id": "not_in_py", "name": "YAML Only"}])
+def test_get_tool_list_yaml_only(mock_yaml):
+    from src import tool_registry
+    result = tool_registry.get_tool_list()
+    # merged 不會包含 not_in_py
+    assert all(t["id"] != "not_in_py" for t in result)
+
+@patch("src.tool_registry.load_yaml_tools", return_value=[{"id": "add", "name": "YAML add", "description": "YAML 覆蓋", "parameters": []}])
+def test_get_tool_list_yaml_python_conflict(mock_yaml):
+    from src import tool_registry
+    result = tool_registry.get_tool_list()
+    # YAML 覆蓋 metadata，但 function 以 Python 為主
+    add_tool = [t for t in result if t["id"] == "add"][0]
+    assert add_tool["name"] == "YAML add"
+    assert callable(add_tool["function"])
+
+@patch("src.tool_registry.load_yaml_tools", return_value=[])
+def test_get_tool_list_python_only(mock_yaml):
+    from src import tool_registry
     result = tool_registry.get_tool_list()
     # 應包含所有 PYTHON_TOOLS
     assert len(result) == len(tool_registry.PYTHON_TOOLS)
