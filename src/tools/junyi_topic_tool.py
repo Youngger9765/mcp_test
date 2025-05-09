@@ -2,7 +2,7 @@ import requests
 
 JUNYI_TOPIC_PAGE_API = "https://www.junyiacademy.org/api/v2/open/content/topicpage/{topic_id}"
 
-def respond(topic_id: str = "root") -> dict:
+def get_junyi_topic(topic_id: str = "root"):
     """
     查詢均一 topic 內容，回傳該 topic 的標題、描述與子主題摘要。
     """

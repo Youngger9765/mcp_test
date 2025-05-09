@@ -5,7 +5,12 @@
 
 import yaml
 from typing import List, Dict, Callable
-from src.tools import add, get_junyi_tree, get_junyi_topic, get_junyi_topic_by_title, agent_a_tool, agent_b_tool
+from src.agents.add_agent import AddAgent
+from src.agents.junyi_tree_agent import JunyiTreeAgent
+from src.agents.junyi_topic_agent import JunyiTopicAgent
+from src.agents.junyi_topic_by_title_agent import JunyiTopicByTitleAgent
+from src.agents.a_agent import AAgent
+from src.agents.b_agent import BAgent
 import os
 
 def load_yaml_tools(yaml_path="mcp_config.yaml"):
@@ -29,7 +34,7 @@ PYTHON_TOOLS = [
             "a=1, b='123'",
             "a=2, b='456'"
         ],
-        "function": add,
+        "function": AddAgent().respond,
         "request_example": {"a": 1, "b": "123"},
         "response_example": {"result": 124}
     },
@@ -46,7 +51,7 @@ PYTHON_TOOLS = [
             "查詢 root topic_id 的課程樹",
             "顯示數學科的課程結構"
         ],
-        "function": get_junyi_tree,
+        "function": JunyiTreeAgent().respond,
         "request_example": {"topic_id": "root"},
         "response_example": {"type": "tree", "content": {"id": "root", "children": []}, "meta": {"topic_id": "root", "depth": 1}, "agent_id": "get_junyi_tree", "agent_name": "均一樹查詢", "error": None}
     },
@@ -62,7 +67,7 @@ PYTHON_TOOLS = [
         "example_queries": [
             "查詢 topic_id 為 root 的主題內容"
         ],
-        "function": get_junyi_topic,
+        "function": JunyiTopicAgent().respond,
         "request_example": {"topic_id": "root"},
         "response_example": {"type": "topic", "content": {"id": "root", "title": "數學"}, "meta": {"topic_id": "root"}, "agent_id": "get_junyi_topic", "agent_name": "均一主題查詢", "error": None}
     },
@@ -78,7 +83,7 @@ PYTHON_TOOLS = [
         "example_queries": [
             "查詢標題為『分數』的主題內容"
         ],
-        "function": get_junyi_topic_by_title,
+        "function": JunyiTopicByTitleAgent().respond,
         "request_example": {"title": "分數"},
         "response_example": {"type": "topic_by_title", "content": {"id": "math_002", "title": "分數"}, "meta": {"title": "分數", "topic_id": "math_002"}, "agent_id": "get_junyi_topic_by_title", "agent_name": "均一主題標題查詢", "error": None}
     },
@@ -95,7 +100,7 @@ PYTHON_TOOLS = [
             "請幫我查一下影片剪輯教學",
             "什麼是 YouTuber？"
         ],
-        "function": agent_a_tool,
+        "function": AAgent().respond,
         "request_example": {"input_text": "請幫我查一下影片剪輯教學"},
         "response_example": {"result": "這是影片剪輯教學的摘要..."}
     },
@@ -111,7 +116,7 @@ PYTHON_TOOLS = [
         "example_queries": [
             "B 網站有什麼新消息？"
         ],
-        "function": agent_b_tool,
+        "function": BAgent().respond,
         "request_example": {"input_text": "b 網站有什麼新消息？"},
         "response_example": {"result": "B 網站最新消息如下..."}
     },

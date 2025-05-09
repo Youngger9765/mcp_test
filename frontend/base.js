@@ -42,9 +42,14 @@ async function sendQuery(query) {
 function summarizeResult(result) {
   if (!result) return "<i>（無內容）</i>";
   if (typeof result !== "object") return result;
-  if (result.content && result.content.text) return result.content.text;
+  // 支援 result.content.data 或 result.data
+  let data = null;
   if (result.content && result.content.data) {
-    const data = result.content.data;
+    data = result.content.data;
+  } else if (result.data) {
+    data = result.data;
+  }
+  if (data) {
     let summary = "";
     if (data.title) summary += `<b>主題：</b>${data.title}<br>`;
     if (data.intro) summary += `<b>簡介：</b>${data.intro}<br>`;
@@ -70,9 +75,9 @@ async function handleUserInput() {
   input.disabled = true;
   document.getElementById("send-btn").disabled = true;
 
-  // 1. 先呼叫 /orchestrate 顯示 agent 回應
+  // 1. 先呼叫 /agent/single_turn_dispatch 顯示 agent 回應
   showLoading();
-  let orchestrateRes = await fetch("http://localhost:8000/orchestrate", {
+  let orchestrateRes = await fetch("http://localhost:8000/agent/single_turn_dispatch", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt: text })
@@ -111,7 +116,7 @@ async function handleUserInput() {
   let finished = false;
   while (!finished) {
     showLoading();
-    const res = await fetch("http://localhost:8000/multi_turn_step", {
+    const res = await fetch("http://localhost:8000/agent/multi_turn_step", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ history, query: currentQuery })

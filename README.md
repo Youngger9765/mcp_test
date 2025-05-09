@@ -4,6 +4,15 @@
 
 # MCP 架構說明文件
 
+## 2025/5/8 DDD 重構重點
+
+- 採用 DDD（Domain-Driven Design）分層：明確區分 tools、agents、orchestrator 三層。
+- tools/：最底層功能單元，無狀態、無決策，僅負責「做事」。
+- agents/：有邏輯、有狀態的智能代理，會調用一個或多個 tool，並可對話、推理。
+- orchestrator.py：負責根據用戶需求、上下文，調度 agent，管理多步推理。
+- API 路徑、命名、測試、文件皆與分層一致，易於維護與擴充。
+- 未來如需更複雜調度，可再細分 tool_orchestrator、agent_orchestrator 等。
+
 ## 目錄
 - [專案目標](#專案目標)
 - [系統分層架構](#系統分層架構)
@@ -27,16 +36,15 @@
 
 ## 系統分層架構
 
-1. **前端顯示**
-   - 僅驗證 API 回傳資料格式與正確性
-   - 支援多種資料型態（表格、樹狀圖、純文字等）
-   - 實際 render 交由其他網站
-
-2. **後端處理**
-   - **意圖判斷（LLM）**：接收 user query，呼叫 LLM 進行意圖分類
-   - **agent mapping 與調用**：根據意圖選擇對應 agent，統一繼承 `BaseAgent`
-   - **API 查詢與資料整理**：agent 與外部 API 溝通，回傳統一格式
-   - **統一 response schema**：所有 API 回傳皆符合統一 schema
+1. **tools/**
+   - 單一功能、無狀態的底層工具（如查詢 API、計算等）
+   - 只做一件事，無決策、無狀態，純 function
+2. **agents/**
+   - 有邏輯、有狀態的智能代理，會調用一個或多個 tool，並可對話、推理
+   - 封裝決策、狀態、對話等行為
+3. **orchestrator.py**
+   - 負責根據 user query，選擇正確的 agent，調用 agent 的 respond 方法，組合回應
+   - 管理多步推理流程
 
 ### 智慧 Smart Chat 架構圖
 
@@ -158,6 +166,17 @@
 
 ---
 
+## FAQ（分層說明）
+
+- **Tool 是什麼？**
+  - 最底層功能單元，無狀態、無決策，僅負責「做事」。
+- **Agent 是什麼？**
+  - 有邏輯、有狀態的智能代理，會調用一個或多個 tool，並可對話、推理。
+- **Orchestrator 是什麼？**
+  - 負責根據用戶需求、上下文，調度 agent，管理多步推理。
+
+---
+
 ## 相關檔案說明
 
 - `mcp_config.yaml`：agent metadata 設定
@@ -267,6 +286,10 @@ PYTHONPATH=. pytest --cov=src tests/
 - 移除冗餘 function 與 import，測試與主流程分離
 - plug-in log/debug 機制（log_call decorator）初步完成
 - README checklist、檔案說明、FAQ 同步更新
+
+### 2025/5/8
+- 採用 DDD 分層重構，明確區分 tools、agents、orchestrator 三層，提升可維護性與擴充性。
+- README 架構、FAQ、分層說明同步更新。
 
 ---
 

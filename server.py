@@ -1,5 +1,5 @@
 # server.py
-from src.orchestrator import orchestrate, multi_turn_orchestrate, multi_turn_step
+from src.orchestrator import dispatch_agent_single_turn, dispatch_agent_multi_turn_step
 import inspect
 import openai
 from fastapi import FastAPI, Request, Body, APIRouter
@@ -39,11 +39,11 @@ class QueryRequest(BaseModel):
     last_meta: dict = None
     topic_id: str = None
 
-@app.post("/orchestrate")
-async def orchestrate_api(data: OrchestrateRequest):
+@app.post("/agent/single_turn_dispatch")
+async def agent_single_turn_dispatch_api(data: OrchestrateRequest):
     intent_result = intent_analyzer(data.prompt)
     if intent_result.get("intent") == "tool_call":
-        result = orchestrate(data.prompt)
+        result = dispatch_agent_single_turn(data.prompt)
         result["intent"] = intent_result
         return JSONResponse(content=result)
     else:
@@ -59,8 +59,8 @@ async def orchestrate_api(data: OrchestrateRequest):
         )
         return JSONResponse(content={"type": "chat", "reply": reply, "intent": intent_result})
 
-@app.post("/multi_turn_step")
-async def multi_turn_step_api(request: Request):
+@app.post("/agent/multi_turn_step")
+async def agent_multi_turn_step_api(request: Request):
     data = await request.json()
     history = data.get("history", [])
     query = data.get("query", "")
@@ -79,7 +79,7 @@ async def multi_turn_step_api(request: Request):
             )
             return JSONResponse(content={"action": "chat", "reply": reply, "intent": intent_result})
         # 否則才進入工具鏈
-        first_result = orchestrate(query)
+        first_result = dispatch_agent_single_turn(query)
         # 修正：轉換格式
         if first_result.get("type") == "result":
             history = [{
@@ -92,7 +92,7 @@ async def multi_turn_step_api(request: Request):
             return JSONResponse(content={"action": "error", "message": first_result.get("message", "查詢失敗")})
     if not history:
         return JSONResponse(content={"message": "請先查詢一次，再進行多輪推理。"})
-    result = multi_turn_step(history, query)
+    result = dispatch_agent_multi_turn_step(history, query)
     return JSONResponse(content=result)
 
 @app.get("/")
