@@ -248,8 +248,7 @@
 ## 相關檔案說明
 
 - `mcp_config.yaml`：agent metadata 設定
-- `src/agent_registry.py`：進階 agent class/function 與 get_python_agents()
-- `src/agent_loader.py`：自動合併 YAML 與 Python agent，產生 AGENT_LIST
+- `src/agent_registry.py`：自動合併 YAML 與 Python agent，產生 AGENT_LIST
 
 ---
 
