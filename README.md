@@ -389,3 +389,46 @@ PYTHONPATH=. pytest --cov=src tests/
 - UX 優化：意圖 label、<details> 摘要、錯誤訊息、history 展開
 - README 架構圖、history/intention/spec 流程、分層說明同步更新
 - 測試覆蓋 agent 註冊、合併、respond 格式與 API schema
+
+# Debug：為什麼動態/靜態工具清單一樣，LLM 結果還是不同？
+
+在 MCP 多 agent 系統中，無論你用靜態（PYTHON_TOOLS）或動態（自動掃描 agents 目錄）產生工具清單，只要傳給 LLM 的工具清單內容（id、name、description、parameters...）完全一樣，**理論上 LLM 應該會有相同的推理行為**。
+
+但實務上，即使工具清單內容一模一樣，LLM 生成的結果還是可能不同，常見原因如下：
+
+## 1. LLM 是機率模型
+- LLM（如 GPT-4）每次生成時，會根據上下文、token sampling、temperature 等參數，產生不同的 output。
+- 只要 prompt 有一點點不同（如欄位順序、空格、換行、JSON key 順序），LLM 的「注意力」就可能偏向不同的工具。
+
+## 2. 工具清單順序/格式微差
+- 靜態與動態產生的工具清單，雖然內容一樣，但順序可能不同（如 id 排序、dict 順序）。
+- LLM 有時會偏好前面的工具，或受順序影響。
+- 建議用 `json.dumps(obj, sort_keys=True, ensure_ascii=False)` 輸出，確保順序一致。
+
+## 3. prompt 其他部分也會影響
+- system prompt、user prompt、工具清單上下文描述，只要有一點點不同，LLM 的推理路徑就可能不同。
+- 例如多一個換行、空格、或描述語句不同，都可能影響 LLM 的選擇。
+
+## 4. LLM 內部隨機性
+- 除非 temperature=0 且所有 sampling 都 deterministic，否則 LLM 仍有小機率產生不同 output。
+
+## 5. 欄位豐富度
+- 如果只傳 id、name、description、parameters，LLM 能理解的資訊有限。
+- 建議多傳 `tags`、`category`、`example_queries` 等 metadata，讓 LLM 更容易選對工具。
+
+---
+
+### Debug 建議
+
+1. **確認工具清單內容完全一致**（可用 diff 工具比對 JSON 輸出）。
+2. **確認工具順序一致**（建議 sort by id）。
+3. **確認 prompt 其他部分完全一致**（system/user prompt、上下文、換行、空格）。
+4. **temperature 設為 0**，減少隨機性。
+5. **多次測試**，觀察是否還有差異。
+6. **log 工具清單與 LLM 回傳**，方便追蹤每次推理差異。
+
+---
+
+> 即使一切都一樣，LLM 仍有小機率產生不同結果，這是語言模型的本質。若需完全 deterministic，建議用 rule-based 或 function-calling 等方式輔助。
+
+---
