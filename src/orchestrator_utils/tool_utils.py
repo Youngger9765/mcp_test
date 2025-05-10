@@ -1,8 +1,8 @@
-from src.tool_registry import get_tool_list
+from src.agent_registry import get_agent_list
 from typing import List, Dict
 
 def get_tool_brief() -> List[Dict]:
-    tools = get_tool_list()
+    tools = get_agent_list()
     return [
         {
             "id": t["id"],

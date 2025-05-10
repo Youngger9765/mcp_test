@@ -5,7 +5,7 @@
 import openai
 import json
 import os
-from src.tool_registry import get_tool_list
+from src.agent_registry import get_agent_list
 from typing import Any, Dict, List
 from src.orchestrator_utils.prompt_builder import build_single_turn_prompt, build_multi_turn_step_prompt
 from src.orchestrator_utils.llm_client import call_llm
@@ -43,7 +43,7 @@ def dispatch_agent_single_turn(prompt: str) -> Dict[str, Any]:
         parsed = parse_llm_json_reply(llm_reply, required_keys=["tool_id"])
         tool_id = parsed["tool_id"]
         params = parsed.get("parameters", {})
-        tools = get_tool_list()
+        tools = get_agent_list()
         tool = next((t for t in tools if t["id"] == tool_id), None)
         if tool:
             output = tool["function"](**params)
@@ -89,7 +89,7 @@ def dispatch_agent_multi_turn_step(history: List[Dict[str, Any]], query: str, ma
             }
         tool_id = plan["tool_id"]
         params = plan.get("parameters", {})
-        tools = get_tool_list()
+        tools = get_agent_list()
         tool = next((t for t in tools if t["id"] == tool_id), None)
         if tool:
             output = tool["function"](**params)

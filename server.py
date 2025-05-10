@@ -8,7 +8,7 @@ import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
-from src.tool_registry import get_tool_list
+from src.agent_registry import get_agent_list
 from pydantic import BaseModel, create_model, Field
 from typing import Any, Dict, List
 from src.orchestrator_utils.intent_analyzer import intent_analyzer
@@ -118,7 +118,7 @@ def index():
 
 # 動態產生 agent endpoint
 router = APIRouter()
-for agent in get_tool_list():
+for agent in get_agent_list():
     agent_id = agent["id"]
     name = agent.get("name", agent_id)
     description = agent.get("description", "")

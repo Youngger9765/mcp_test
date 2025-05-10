@@ -1,4 +1,4 @@
-from src.tool_registry import get_tool_list
+from src.agent_registry import get_agent_list
 import types
 import pytest
 from unittest.mock import patch
@@ -11,8 +11,8 @@ def fake_tool_list():
         {"id": "test_tool", "name": "Test Tool", "description": "desc", "parameters": [], "function": fake_tool_func}
     ]
 
-def test_tool_list_not_empty():
-    tools = get_tool_list()
+def test_agent_list_not_empty():
+    tools = get_agent_list()
     assert isinstance(tools, list)
     assert len(tools) > 0
     for tool in tools:
@@ -23,7 +23,7 @@ def test_tool_list_not_empty():
         assert "function" in tool
 
 def test_tool_metadata_and_function_separation():
-    tools = get_tool_list()
+    tools = get_agent_list()
     for tool in tools:
         # 檢查 metadata
         for key in ["id", "name", "description", "parameters"]:
@@ -101,7 +101,7 @@ def test_agent_registry_get_agent_not_exist():
     assert registry.get_agent("not_exist") is None
 
 def main():
-    tools = get_tool_list()
+    tools = get_agent_list()
     for tool in tools:
         print(f"ID: {tool['id']}, 名稱: {tool['name']}, 說明: {tool['description']}")
         print(f"參數: {tool['parameters']}")
