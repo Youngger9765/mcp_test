@@ -1,4 +1,4 @@
-.PHONY: test test-cov install run
+.PHONY: test test-cov install run test-integration-chat
 
 # 安裝測試相關套件
 install:
@@ -20,6 +20,10 @@ test-cov:
 # 顯示詳細測試過程
 test-verbose:
 	PYTHONPATH=. pytest -v 
+
+# 執行 chat/memory/multi-turn 整合測試
+test-integration-chat:
+	PYTHONPATH=. pytest -v tests/test_integration_chat.py
 
 run:
 	@echo "關閉殘留的 serve 進程..."
