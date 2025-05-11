@@ -1,7 +1,7 @@
 from src.agent_registry import get_agent_list
 from typing import List, Dict
 
-def get_tool_brief() -> List[Dict]:
+def get_agents_metadata() -> List[Dict]:
     tools = get_agent_list()
     return [
         {

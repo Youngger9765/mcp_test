@@ -9,7 +9,7 @@ from src.agent_registry import get_agent_list
 from typing import Any, Dict, List
 from src.orchestrator_utils.prompt_builder import build_single_turn_prompt, build_multi_turn_step_prompt
 from src.orchestrator_utils.llm_client import call_llm
-from src.orchestrator_utils.tool_utils import get_tool_brief
+from src.orchestrator_utils.agent_metadata import get_agents_metadata
 from src.orchestrator_utils.validator import parse_llm_json_reply
 from log_debug_info import log_debug_info
 
@@ -25,7 +25,7 @@ def log_call(func):
 def dispatch_agent_single_turn(prompt: str) -> Dict[str, Any]:
     print("=== [DEBUG] 開始調度 dispatch_agent_single_turn ===")
     log_debug_info(tool_brief=None, system_prompt=None, user_prompt=prompt, llm_reply=None, prefix="print_debug")
-    tool_brief = get_tool_brief()
+    tool_brief = get_agents_metadata()
     system_prompt, user_prompt = build_single_turn_prompt(tool_brief, prompt)
     print("=== [DEBUG] system_prompt ===", system_prompt)
     log_debug_info(tool_brief=tool_brief, system_prompt=system_prompt, user_prompt=None, llm_reply=None, prefix="print_debug")
@@ -78,7 +78,7 @@ def dispatch_agent_multi_turn_step(history: List[Dict[str, Any]], query: str, ma
     分步查詢：每次只推理一輪，回傳本輪結果或 finish。
     """
     import copy
-    tool_brief = get_tool_brief()
+    tool_brief = get_agents_metadata()
     system_prompt, user_prompt = build_multi_turn_step_prompt(tool_brief, history, query)
     try:
         llm_reply = call_llm(
