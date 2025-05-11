@@ -373,13 +373,17 @@ PYTHONPATH=. pytest --cov=src tests/
 
 ## Changelog
 
-### 2025/5/7
-- orchestrator.py 完全函式化與模組化，移除 Orchestrator class
-- 多輪推理與分步推理統一，皆具備防重複查詢能力
-- prompt 組裝、LLM 呼叫、工具清單、格式驗證等抽出為獨立模組（src/orchestrator_utils/）
-- 移除冗餘 function 與 import，測試與主流程分離
-- plug-in log/debug 機制（log_call decorator）初步完成
-- README checklist、檔案說明、FAQ 同步更新
+### 2025/5/11
+- orchestrator > agent > tool 三層完全獨立，不會跨層調用，分層更清晰。
+- agent_registry 現在只做動態註冊（自動掃描 agents 目錄），已移除靜態註冊邏輯。
+- agent 工具描述全面優化，明確區分查教材/查主題與數字運算，降低 LLM 混淆。
+- 工具清單取得統一改為 `get_agents_metadata`，檔案改為 `agent_metadata.py`，語意更明確。
+- agent_registry 採 singleton 快取，效能提升且 log 不再重複爆量。
+- log_debug_info 每天只產生一份 txt 純文字 log，格式更簡潔。
+- integration test 強制要求多輪推理必須用到 `get_junyi_tree` 或 `get_junyi_topic`，確保推理流程正確。
+- 工具清單順序統一依 id 排序，無論靜態/動態來源都一致，減少 LLM 行為隨機性。
+- 移除舊的 tool_utils.py，所有引用同步改為 agent_metadata.py。
+- README.md 相關檔案說明、流程、log/debug、測試等區塊同步更新。
 
 ### 2025/5/8
 - 完成 DDD 分層重構（tools/agents/orchestrator），分層明確、命名標準化
@@ -391,27 +395,14 @@ PYTHONPATH=. pytest --cov=src tests/
 - UX 優化：意圖 label、<details> 摘要、錯誤訊息、history 展開
 - README 架構圖、history/intention/spec 流程、分層說明同步更新
 - 測試覆蓋 agent 註冊、合併、respond 格式與 API schema
-- 採用 DDD（Domain-Driven Design）分層：明確區分 tools、agents、orchestrator 三層。
-- tools/：最底層功能單元，無狀態、無決策，僅負責「做事」。
-- agents/：有邏輯、有狀態的智能代理，會調用一個或多個 tool，並可對話、推理。
-- orchestrator.py：負責根據用戶需求、上下文，調度 agent，管理多步推理。
-- API 路徑、命名、測試、文件皆與分層一致，易於維護與擴充。
-- 未來如需更複雜調度，可再細分 tool_orchestrator、agent_orchestrator 等。
 
-## 2025/5/11 架構與流程優化
-
-- orchestrator > agent > tool 三層完全獨立，**不會跨層調用**，每層只依賴下層，確保分層清晰。
-- agent_registry 現在只做**動態註冊**（自動掃描 agents 目錄），已移除靜態註冊邏輯，所有 agent metadata 皆自動生成。
-- agent 工具描述全面優化，明確區分查教材/查主題與數字運算，降低 LLM 混淆。
-- 工具清單取得統一改為 `get_agents_metadata`，檔案改為 `agent_metadata.py`，語意更明確。
-- agent_registry 採 singleton 快取，效能提升且 log 不再重複爆量。
-- log_debug_info 每天只產生一份 txt 純文字 log，格式更簡潔。
-- integration test 強制要求多輪推理必須用到 `get_junyi_tree` 或 `get_junyi_topic`，確保推理流程正確。
-- 工具清單順序統一依 id 排序，無論靜態/動態來源都一致，減少 LLM 行為隨機性。
-- 移除舊的 tool_utils.py，所有引用同步改為 agent_metadata.py。
-- README.md 相關檔案說明、流程、log/debug、測試等區塊同步更新。
-
-
+### 2025/5/7
+- orchestrator.py 完全函式化與模組化，移除 Orchestrator class
+- 多輪推理與分步推理統一，皆具備防重複查詢能力
+- prompt 組裝、LLM 呼叫、工具清單、格式驗證等抽出為獨立模組（src/orchestrator_utils/）
+- 移除冗餘 function 與 import，測試與主流程分離
+- plug-in log/debug 機制（log_call decorator）初步完成
+- README checklist、檔案說明、FAQ 同步更新
 
 # Debug：為什麼動態/靜態工具清單一樣，LLM 結果還是不同？
 
@@ -427,6 +418,7 @@ PYTHONPATH=. pytest --cov=src tests/
 - 靜態與動態產生的工具清單，雖然內容一樣，但順序可能不同（如 id 排序、dict 順序）。
 - LLM 有時會偏好前面的工具，或受順序影響。
 - 建議用 `json.dumps(obj, sort_keys=True, ensure_ascii=False)` 輸出，確保順序一致。
+- **目前已解決：現已動態依 id 排序，無論來源都一致，LLM 行為更穩定。**
 
 ## 3. prompt 其他部分也會影響
 - system prompt、user prompt、工具清單上下文描述，只要有一點點不同，LLM 的推理路徑就可能不同。
@@ -441,16 +433,15 @@ PYTHONPATH=. pytest --cov=src tests/
 
 ---
 
-### Debug 建議
+### Debug Workaround 與進階解法
 
-1. **確認工具清單內容完全一致**（可用 diff 工具比對 JSON 輸出）。
-2. **確認工具順序一致**（建議 sort by id）。
-3. **確認 prompt 其他部分完全一致**（system/user prompt、上下文、換行、空格）。
-4. **temperature 設為 0**，減少隨機性。
-5. **多次測試**，觀察是否還有差異。
-6. **log 工具清單與 LLM 回傳**，方便追蹤每次推理差異。
+- **目前 workaround**：
+  - 工具清單順序統一依 id 排序，已大幅降低 LLM 行為隨機性。
 
----
+- **更進階的解法**：
+  - 在 LLM 工具選擇前，根據 user content 過濾、比對每個工具的參數需求，僅允許「能從 user prompt 合理抽取所有必要參數」的工具被選用。
+  - 例如：user prompt 沒有兩個數字時，不允許選加法工具；查詢主題時，只有有明確主題關鍵字才允許選主題查詢工具。
+  - 這樣能進一步避免 LLM 語意誤判，提升推理精度。
 
 > 即使一切都一樣，LLM 仍有小機率產生不同結果，這是語言模型的本質。若需完全 deterministic，建議用 rule-based 或 function-calling 等方式輔助。
 
