@@ -113,7 +113,6 @@ class AgentRegistry:
         merged = {}
         # 合併自動掃描 agents 目錄
         print("[AgentRegistry] 動態模式")
-        log_debug_info(tool_brief=None, system_prompt=None, user_prompt=None, llm_reply="[AgentRegistry] 動態模式", prefix="print_debug")
         python_agents = self._load_python_agents()
         for p in python_agents:
             aid = p["id"]
@@ -138,8 +137,6 @@ class AgentRegistry:
         agent_list = []
         try:
             from src import agents
-            print("[AgentRegistry] agents module path:", agents.__path__)
-            log_debug_info(tool_brief=None, system_prompt=None, user_prompt=None, llm_reply=f"agents module path: {agents.__path__}", prefix="print_debug")
             for _, module_name, _ in pkgutil.iter_modules(agents.__path__):
                 module = importlib.import_module(f"src.agents.{module_name}")
                 for attr in dir(module):
@@ -169,8 +166,10 @@ class AgentRegistry:
     def get_agent(self, agent_id):
         return self._agents.get(agent_id)
 
+_AGENT_REGISTRY = None
+
 def get_agent_list() -> List[Dict]:
-    """
-    回傳所有 agent metadata（靜態+自動掃描），依 id 排序。
-    """
-    return [AgentRegistry()._agents[k] for k in sorted(AgentRegistry()._agents.keys())] 
+    global _AGENT_REGISTRY
+    if _AGENT_REGISTRY is None:
+        _AGENT_REGISTRY = AgentRegistry()
+    return list(_AGENT_REGISTRY._agents.values()) 
