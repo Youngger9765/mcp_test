@@ -402,6 +402,9 @@ PYTHONPATH=. pytest --cov=src tests/
 - 工具清單順序統一依 id 排序，無論靜態/動態來源都一致，減少 LLM 行為隨機性。
 - 移除舊的 tool_utils.py，所有引用同步改為 agent_metadata.py。
 - README.md 相關檔案說明、流程、log/debug、測試等區塊同步更新。
+- 完成變數分析（參數抽取＋工具過濾）功能，TDD 驗證，整合到單步/多步對話流，trace 可用 agent。
+- 測試與 edge case 覆蓋查教材/查主題/加法語意誤判等情境。
+- README、測試、主流程同步更新。
 
 ### 2025/5/8
 - 完成 DDD 分層重構（tools/agents/orchestrator），分層明確、命名標準化
