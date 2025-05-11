@@ -19,12 +19,17 @@ def test_add_agent_normal():
     agent = AddAgent()
     result = agent.respond(1, 2)
     assert result["type"] == "add_result"
-    assert result["content"]["result"] == 9999 or isinstance(result["content"]["result"], int)
+    if result["error"]:
+        assert result["content"] is None
+    else:
+        assert "result" in result["content"]
+        assert isinstance(result["content"]["result"], int)
 
 def test_add_agent_non_int():
     agent = AddAgent()
     result = agent.respond("a", "b")
-    assert result["content"]["result"] == 9999
+    assert result["error"] is not None
+    assert result["content"] is None
 
 def test_add_agent_missing_param():
     agent = AddAgent()
@@ -34,8 +39,9 @@ def test_add_agent_missing_param():
 @patch("src.agents.add_agent.add", side_effect=Exception("fail add"))
 def test_add_agent_add_exception(mock_add):
     agent = AddAgent()
-    with pytest.raises(Exception):
-        agent.respond(1, 2)
+    result = agent.respond(1, "123")
+    assert result["error"] is not None
+    assert result["content"] is None
 
 @patch("src.agents.junyi_topic_agent.get_junyi_topic", side_effect=Exception("fail topic"))
 def test_junyi_topic_agent_tool_exception(mock_tool):

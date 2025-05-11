@@ -18,11 +18,24 @@ class AddAgent:
     response_example = {"result": 124}
 
     def respond(self, a: int, b: str):
-        result = add(a, int(b))
-        return {
-            "type": "add_result",
-            "content": {"result": result},
-            "meta": {"a": a, "b": b},
-            "agent_id": self.id,
-            "error": None
-        } 
+        try:
+            if not isinstance(a, int):
+                raise ValueError("a 必須是 int")
+            if not (isinstance(b, str) and b.isdigit() and len(b) == 3):
+                raise ValueError("b 必須是三位數字字串")
+            result = add(a, int(b))
+            return {
+                "type": "add_result",
+                "content": {"result": result},
+                "meta": {"a": a, "b": b},
+                "agent_id": self.id,
+                "error": None
+            }
+        except Exception as e:
+            return {
+                "type": "add_result",
+                "content": None,
+                "meta": {"a": a, "b": b},
+                "agent_id": self.id,
+                "error": str(e)
+            } 

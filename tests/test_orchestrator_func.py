@@ -131,7 +131,7 @@ def test_is_redundant_empty_history():
 
 def test_log_call_decorator_print():
     with patch("builtins.print") as mock_print:
-        with patch("src.orchestrator.get_tool_brief", return_value=[]), \
+        with patch("src.orchestrator.get_agents_metadata", return_value=[]), \
              patch("src.orchestrator.build_single_turn_prompt", return_value=("", "")), \
              patch("src.orchestrator.call_llm", return_value="{}"), \
              patch("src.orchestrator.parse_llm_json_reply", side_effect=Exception("parse error")):

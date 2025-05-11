@@ -64,7 +64,7 @@ def test_auto_scan_agents(monkeypatch, tmp_path):
     # 動態建立一個假的 agents 目錄與 agent class
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir()
-    agent_code = """
+    agent_code = '''
 class AutoTestAgent:
     id = "auto_test_agent"
     name = "Auto Test Agent"
@@ -72,28 +72,28 @@ class AutoTestAgent:
     parameters = [{"name": "input_text", "type": "str"}]
     def respond(self, input_text):
         return {"type": "text", "content": {"text": input_text}, "meta": {}, "agent_id": "auto_test_agent", "error": None}
-"""
+'''
     (agents_dir / "auto_test_agent.py").write_text(agent_code, encoding="utf-8")
 
-    # monkeypatch sys.path 與 agents module
     import sys
-    sys.path.insert(0, str(tmp_path))
     import importlib
     import types
-    agents_pkg = types.ModuleType("agents")
-    agents_pkg.__path__ = [str(agents_dir)]
-    sys.modules["agents"] = agents_pkg
 
-    # monkeypatch AgentRegistry._load_python_agents
+    sys.path.insert(0, str(tmp_path))
+    # 先 import src.agents，再 monkeypatch __path__
+    import src.agents
+    monkeypatch.setattr(src.agents, "__path__", [str(agents_dir)])
+
     from src.agent_registry import AgentRegistry
     registry = AgentRegistry()
-    # 這裡假設 _load_python_agents 會自動掃描 agents/ 目錄
     agent_ids = registry.list_agent_ids()
     assert "auto_test_agent" in agent_ids
     agent = registry.get_agent("auto_test_agent")
     assert agent["name"] == "Auto Test Agent"
     assert callable(agent["function"])
     assert agent["function"]("hello")["content"]["text"] == "hello"
+    for field in ["id", "name", "description", "parameters", "function"]:
+        assert field in agent
 
 def test_agent_registry_get_agent_not_exist():
     from src.agent_registry import AgentRegistry
