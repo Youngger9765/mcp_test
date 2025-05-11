@@ -16,14 +16,6 @@
 
 # MCP 架構說明文件
 
-## 2025/5/8 DDD 重構重點
-
-- 採用 DDD（Domain-Driven Design）分層：明確區分 tools、agents、orchestrator 三層。
-- tools/：最底層功能單元，無狀態、無決策，僅負責「做事」。
-- agents/：有邏輯、有狀態的智能代理，會調用一個或多個 tool，並可對話、推理。
-- orchestrator.py：負責根據用戶需求、上下文，調度 agent，管理多步推理。
-- API 路徑、命名、測試、文件皆與分層一致，易於維護與擴充。
-- 未來如需更複雜調度，可再細分 tool_orchestrator、agent_orchestrator 等。
 
 ## 目錄
 - [專案目標](#專案目標)
@@ -61,6 +53,7 @@
 3. **orchestrator.py**
    - 負責根據 user query，選擇正確的 agent，調用 agent 的 respond 方法，組合回應
    - 管理多步推理流程
+   - **三層完全獨立，不會跨層調用**，orchestrator 只依賴 agent，agent 只依賴 tool，tool 不依賴其他層。
 
 ### 智慧 Smart Chat 對話流程與架構圖（2025/5 DDD 分層重構後）
 
@@ -155,6 +148,13 @@
 ---
 
 ## Agent 註冊與合併流程
+
+### 動態註冊設計
+
+- **動態註冊設計**
+  - 現在僅支援自動掃描 agents 目錄，所有 agent metadata 皆自動生成。
+  - 已移除靜態註冊（PYTHON_TOOLS）邏輯，維護更簡單。
+  - agent_registry 只初始化一次（singleton），效能提升且 log 更乾淨。
 
 ### 雙軌註冊設計
 
@@ -270,6 +270,8 @@
 
 - `mcp_config.yaml`：agent metadata 設定
 - `src/agent_registry.py`：自動合併 YAML 與 Python agent，產生 AGENT_LIST
+- `src/orchestrator_utils/agent_metadata.py`：統一取得所有 agent metadata，供 orchestrator、前端、測試等使用。
+- `get_agents_metadata()`：回傳所有 agent 的簡要資訊，取代舊的 get_tool_brief。
 
 ---
 
@@ -389,6 +391,27 @@ PYTHONPATH=. pytest --cov=src tests/
 - UX 優化：意圖 label、<details> 摘要、錯誤訊息、history 展開
 - README 架構圖、history/intention/spec 流程、分層說明同步更新
 - 測試覆蓋 agent 註冊、合併、respond 格式與 API schema
+- 採用 DDD（Domain-Driven Design）分層：明確區分 tools、agents、orchestrator 三層。
+- tools/：最底層功能單元，無狀態、無決策，僅負責「做事」。
+- agents/：有邏輯、有狀態的智能代理，會調用一個或多個 tool，並可對話、推理。
+- orchestrator.py：負責根據用戶需求、上下文，調度 agent，管理多步推理。
+- API 路徑、命名、測試、文件皆與分層一致，易於維護與擴充。
+- 未來如需更複雜調度，可再細分 tool_orchestrator、agent_orchestrator 等。
+
+## 2025/5/11 架構與流程優化
+
+- orchestrator > agent > tool 三層完全獨立，**不會跨層調用**，每層只依賴下層，確保分層清晰。
+- agent_registry 現在只做**動態註冊**（自動掃描 agents 目錄），已移除靜態註冊邏輯，所有 agent metadata 皆自動生成。
+- agent 工具描述全面優化，明確區分查教材/查主題與數字運算，降低 LLM 混淆。
+- 工具清單取得統一改為 `get_agents_metadata`，檔案改為 `agent_metadata.py`，語意更明確。
+- agent_registry 採 singleton 快取，效能提升且 log 不再重複爆量。
+- log_debug_info 每天只產生一份 txt 純文字 log，格式更簡潔。
+- integration test 強制要求多輪推理必須用到 `get_junyi_tree` 或 `get_junyi_topic`，確保推理流程正確。
+- 工具清單順序統一依 id 排序，無論靜態/動態來源都一致，減少 LLM 行為隨機性。
+- 移除舊的 tool_utils.py，所有引用同步改為 agent_metadata.py。
+- README.md 相關檔案說明、流程、log/debug、測試等區塊同步更新。
+
+
 
 # Debug：為什麼動態/靜態工具清單一樣，LLM 結果還是不同？
 
