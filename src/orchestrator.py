@@ -11,6 +11,7 @@ from src.orchestrator_utils.prompt_builder import build_single_turn_prompt, buil
 from src.orchestrator_utils.llm_client import call_llm
 from src.orchestrator_utils.tool_utils import get_tool_brief
 from src.orchestrator_utils.validator import parse_llm_json_reply
+from log_debug_info import log_debug_info
 
 def log_call(func):
     def wrapper(*args, **kwargs):
@@ -23,10 +24,13 @@ def log_call(func):
 @log_call
 def dispatch_agent_single_turn(prompt: str) -> Dict[str, Any]:
     print("=== [DEBUG] 開始調度 dispatch_agent_single_turn ===")
+    log_debug_info(tool_brief=None, system_prompt=None, user_prompt=prompt, llm_reply=None, prefix="print_debug")
     tool_brief = get_tool_brief()
     system_prompt, user_prompt = build_single_turn_prompt(tool_brief, prompt)
     print("=== [DEBUG] system_prompt ===", system_prompt)
+    log_debug_info(tool_brief=tool_brief, system_prompt=system_prompt, user_prompt=None, llm_reply=None, prefix="print_debug")
     print("=== [DEBUG] user_prompt ===", user_prompt)
+    log_debug_info(tool_brief=tool_brief, system_prompt=None, user_prompt=user_prompt, llm_reply=None, prefix="print_debug")
     try:
         llm_reply = call_llm(
             model="gpt-4.1-mini",
@@ -36,7 +40,14 @@ def dispatch_agent_single_turn(prompt: str) -> Dict[str, Any]:
             ],
             temperature=0
         )
+        log_debug_info(
+            tool_brief=tool_brief,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            llm_reply=llm_reply
+        )
         print("=== [DEBUG] LLM 回傳 ===", llm_reply)
+        log_debug_info(tool_brief=tool_brief, system_prompt=system_prompt, user_prompt=user_prompt, llm_reply=llm_reply, prefix="print_debug")
     except Exception as e:
         return {"type": "error", "message": str(e)}
     try:
@@ -54,6 +65,7 @@ def dispatch_agent_single_turn(prompt: str) -> Dict[str, Any]:
                 "results": [output]
             }
             print("=== [DEBUG] result ===", result)
+            log_debug_info(tool_brief=tool_brief, system_prompt=system_prompt, user_prompt=user_prompt, llm_reply=result, prefix="print_debug")
             return result
         else:
             return {"type": "error", "message": f"找不到工具 {tool_id}"}
@@ -76,6 +88,12 @@ def dispatch_agent_multi_turn_step(history: List[Dict[str, Any]], query: str, ma
                 {"role": "user", "content": user_prompt}
             ],
             temperature=0
+        )
+        log_debug_info(
+            tool_brief=tool_brief,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            llm_reply=llm_reply
         )
     except Exception as e:
         return {"action": "error", "message": str(e)}

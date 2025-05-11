@@ -51,6 +51,7 @@ def test_integration_math_multi_turn():
     2. agent/single_turn_dispatch: 取得第一步 history
     3. agent/multi_turn_step: 連續呼叫直到 action=finish
     4. 檢查過程中至少有兩輪 call_tool，且有多輪（history 長度 > 2），最後有 finish。
+    5. 新增：過程中至少有一輪呼叫到 get_junyi_tree 或 get_junyi_topic。
     """
     resp = client.post("/analyze_intent", json={"prompt": "請幫我查一下分數的加減法"})
     assert resp.status_code == 200
@@ -72,6 +73,7 @@ def test_integration_math_multi_turn():
     max_steps = 8
     called_tool_count = 0
     finished = False
+    used_junyi = False
     for _ in range(max_steps):
         resp = client.post("/agent/multi_turn_step", json={"history": history, "query": query})
         assert resp.status_code == 200
@@ -81,7 +83,10 @@ def test_integration_math_multi_turn():
             called_tool_count += 1
             step = data["step"]
             history.append(step)
+            if step.get("tool_id") in ["get_junyi_tree", "get_junyi_topic"]:
+                used_junyi = True
         elif data["action"] == "finish":
             finished = True
             break
-    assert called_tool_count >= 2 and len(history) > 2 and finished 
+    assert called_tool_count >= 2 and len(history) > 2 and finished
+    assert used_junyi, "過程中必須至少呼叫一次 get_junyi_tree 或 get_junyi_topic 工具" 

@@ -1,10 +1,18 @@
 class AAgent:
-    id = "a_agent"
-    name = "A Agent"
-    description = "查詢 A 網站摘要，電影相關"
+    id = "agent_a_tool"
+    name = "A Agent 工具"
+    description = "查詢 A 網站摘要，適合查詢電影、影片剪輯等相關內容。"
+    category = "網路摘要"
+    tags = ["影片", "剪輯", "摘要"]
     parameters = [
-        {"name": "input_text", "type": "str"}
+        {"name": "input_text", "type": "str", "description": "查詢內容，僅允許 10~100 字元中英文數字空白", "pattern": "^[\u4e00-\u9fa5a-zA-Z0-9 ]{10,100}$"}
     ]
+    example_queries = [
+        "請幫我查一下影片剪輯教學",
+        "什麼是 YouTuber？"
+    ]
+    request_example = {"input_text": "請幫我查一下影片剪輯教學"}
+    response_example = {"result": "這是影片剪輯教學的摘要..."}
 
     def respond(self, input_text: str) -> dict:
         """回傳 A 網站摘要結果"""
