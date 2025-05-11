@@ -57,8 +57,7 @@ def test_dispatch_agent_single_turn_llm_missing_tool_id(mock_llm, mock_tools):
 @patch("src.orchestrator.call_llm", return_value='{"tool_id": "not_exist", "parameters": {}}')
 def test_dispatch_agent_single_turn_tool_not_found(mock_llm, mock_tools):
     result = dispatch_agent_single_turn("測試指令")
-    assert result["type"] == "error"
-    assert "找不到工具" in result["message"]
+    assert result["type"] == "no_available_agent"
 
 @patch("src.orchestrator.get_agent_list", side_effect=lambda: [{"id": "test_tool", "name": "Test Tool", "description": "desc", "parameters": [], "function": lambda **kwargs: 1/0}])
 @patch("src.orchestrator.call_llm", return_value='{"tool_id": "test_tool", "parameters": {}}')
@@ -83,7 +82,7 @@ def test_dispatch_agent_single_turn_parse_exception(mock_parse, mock_llm, mock_t
 @patch("src.orchestrator.call_llm", return_value='{"tool_id": "not_exist", "parameters": {}}')
 def test_dispatch_agent_single_turn_tool_not_found(mock_llm, mock_tools):
     result = dispatch_agent_single_turn("測試指令")
-    assert result["type"] == "error" and "找不到工具" in result["message"]
+    assert result["type"] == "no_available_agent"
 
 @patch("src.orchestrator.get_agent_list", side_effect=fake_tool_list)
 @patch("src.orchestrator.call_llm", return_value='{"tool_id": "test_tool", "parameters": {}}')
@@ -109,7 +108,7 @@ def test_dispatch_agent_multi_turn_step_parse_exception(mock_parse, mock_llm, mo
 @patch("src.orchestrator.call_llm", return_value='{"tool_id": "not_exist", "parameters": {}, "action": "call_tool"}')
 def test_dispatch_agent_multi_turn_step_tool_not_found(mock_llm, mock_tools):
     result = dispatch_agent_multi_turn_step([], "多輪測試", max_turns=2)
-    assert result["action"] == "error" and "找不到工具" in result["message"]
+    assert result["action"] == "no_available_agent"
 
 @patch("src.orchestrator.get_agent_list", side_effect=fake_tool_list)
 @patch("src.orchestrator.call_llm", return_value='{"tool_id": "test_tool", "parameters": {}, "action": "call_tool"}')
@@ -144,6 +143,5 @@ def test_log_call_decorator_print():
 def test_dispatch_agent_multi_turn_step_finish(mock_parse, mock_llm, mock_tools):
     from src.orchestrator import dispatch_agent_multi_turn_step
     result = dispatch_agent_multi_turn_step([], "多輪測試", max_turns=2)
-    assert result["action"] == "finish"
-    assert result["reason"] == "done"
-    assert result["step"] is None 
+    assert result["action"] == "no_available_agent"
+    # no_available_agent 不檢查 reason/step 

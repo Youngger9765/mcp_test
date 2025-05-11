@@ -12,6 +12,7 @@ from src.orchestrator_utils.llm_client import call_llm
 from src.orchestrator_utils.agent_metadata import get_agents_metadata
 from src.orchestrator_utils.validator import parse_llm_json_reply
 from log_debug_info import log_debug_info
+from src.parameter_extraction import filter_available_tools
 
 def log_call(func):
     def wrapper(*args, **kwargs):
@@ -26,6 +27,20 @@ def dispatch_agent_single_turn(prompt: str) -> Dict[str, Any]:
     print("=== [DEBUG] 開始調度 dispatch_agent_single_turn ===")
     log_debug_info(tool_brief=None, system_prompt=None, user_prompt=prompt, llm_reply=None, prefix="print_debug")
     tool_brief = get_agents_metadata()
+    # 取得 agent list（含 function/parameters）
+    agent_list = get_agent_list()
+    # 1. 先做變數分析＋工具過濾
+    filter_result = filter_available_tools(prompt, agent_list)
+    available_agents = [a for a in filter_result if a["available"]]
+    trace = {
+        "user_query": prompt,
+        "filter_result": filter_result
+    }
+    # 2. 若無可用 agent，直接回傳 trace
+    if not available_agents:
+        return {"type": "no_available_agent", "trace": trace}
+    # 3. 只讓 available agent 進入推理（這裡只取第一個，或可依需求調整）
+    # 這裡保留原本 LLM 推理流程，但可根據 available_agents 過濾 tool_brief
     system_prompt, user_prompt = build_single_turn_prompt(tool_brief, prompt)
     print("=== [DEBUG] system_prompt ===", system_prompt)
     log_debug_info(tool_brief=tool_brief, system_prompt=system_prompt, user_prompt=None, llm_reply=None, prefix="print_debug")
@@ -49,7 +64,7 @@ def dispatch_agent_single_turn(prompt: str) -> Dict[str, Any]:
         print("=== [DEBUG] LLM 回傳 ===", llm_reply)
         log_debug_info(tool_brief=tool_brief, system_prompt=system_prompt, user_prompt=user_prompt, llm_reply=llm_reply, prefix="print_debug")
     except Exception as e:
-        return {"type": "error", "message": str(e)}
+        return {"type": "error", "message": str(e), "trace": trace}
     try:
         parsed = parse_llm_json_reply(llm_reply, required_keys=["tool_id"])
         tool_id = parsed["tool_id"]
@@ -62,15 +77,16 @@ def dispatch_agent_single_turn(prompt: str) -> Dict[str, Any]:
                 "type": "result",
                 "tool": tool_id,
                 "input": params,
-                "results": [output]
+                "results": [output],
+                "trace": trace
             }
             print("=== [DEBUG] result ===", result)
             log_debug_info(tool_brief=tool_brief, system_prompt=system_prompt, user_prompt=user_prompt, llm_reply=result, prefix="print_debug")
             return result
         else:
-            return {"type": "error", "message": f"找不到工具 {tool_id}"}
+            return {"type": "error", "message": f"找不到工具 {tool_id}", "trace": trace}
     except Exception as e:
-        return {"type": "error", "message": str(e), "llm_reply": llm_reply}
+        return {"type": "error", "message": str(e), "llm_reply": llm_reply, "trace": trace}
 
 @log_call
 def dispatch_agent_multi_turn_step(history: List[Dict[str, Any]], query: str, max_turns: int = 5) -> Dict[str, Any]:
@@ -79,6 +95,17 @@ def dispatch_agent_multi_turn_step(history: List[Dict[str, Any]], query: str, ma
     """
     import copy
     tool_brief = get_agents_metadata()
+    # 取得 agent list
+    agent_list = get_agent_list()
+    # 先做變數分析＋工具過濾
+    filter_result = filter_available_tools(query, agent_list)
+    available_agents = [a for a in filter_result if a["available"]]
+    trace = {
+        "user_query": query,
+        "filter_result": filter_result
+    }
+    if not available_agents:
+        return {"action": "no_available_agent", "trace": trace}
     system_prompt, user_prompt = build_multi_turn_step_prompt(tool_brief, history, query)
     try:
         llm_reply = call_llm(
@@ -96,14 +123,15 @@ def dispatch_agent_multi_turn_step(history: List[Dict[str, Any]], query: str, ma
             llm_reply=llm_reply
         )
     except Exception as e:
-        return {"action": "error", "message": str(e)}
+        return {"action": "error", "message": str(e), "trace": trace}
     try:
         plan = parse_llm_json_reply(llm_reply, required_keys=["action"])
         if plan.get("action") == "finish":
             return {
                 "action": "finish",
                 "reason": plan.get("reason", "查詢結束"),
-                "step": None
+                "step": None,
+                "trace": trace
             }
         tool_id = plan["tool_id"]
         params = plan.get("parameters", {})
@@ -122,19 +150,22 @@ def dispatch_agent_multi_turn_step(history: List[Dict[str, Any]], query: str, ma
                 return {
                     "action": "finish",
                     "reason": "查詢內容重複，已自動結束。",
-                    "step": step
+                    "step": step,
+                    "trace": trace
                 }
             return {
                 "action": "call_tool",
-                "step": step
+                "step": step,
+                "trace": trace
             }
         else:
             return {
                 "action": "error",
-                "message": f"找不到工具 {tool_id}"
+                "message": f"找不到工具 {tool_id}",
+                "trace": trace
             }
     except Exception as e:
-        return {"action": "error", "message": str(e), "llm_reply": llm_reply}
+        return {"action": "error", "message": str(e), "llm_reply": llm_reply, "trace": trace}
 
 def is_redundant(history, new_step):
     # 只比對最近一輪的參數

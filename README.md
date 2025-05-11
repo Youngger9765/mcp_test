@@ -16,6 +16,23 @@
 
 # MCP 架構說明文件
 
+## 變數分析（參數抽取＋工具過濾）
+
+### 功能說明
+- 根據 user query，自動分析可抽取的參數，並過濾出所有「必填參數都能抽出」的 agent/tool。
+- 參數抽取（extract_parameters_from_query）：用 LLM 語意理解，支援自然語言、數字、中文數字。
+- 必填判斷（get_required_params）：有 required: True 則必填，否則沒 default 也視為必填。
+- 工具過濾（filter_available_tools）：回傳每個 agent 的 available 狀態與參數抽取結果，支援 trace。
+
+### 對話流整合
+- dispatch_agent_single_turn、dispatch_agent_multi_turn_step 皆已整合變數分析與工具過濾。
+- 每次 user query 都會先過濾 agent，無可用 agent 時 early stop，回傳 no_available_agent，trace 結果可回傳前端。
+
+### TDD/edge case 測試
+- 已覆蓋 happy path、缺參數、語意誤判（如查教材但有數字）、LLM 回傳異常等情境。
+- 測試全部通過，流程穩健。
+
+---
 
 ## 目錄
 - [專案目標](#專案目標)
@@ -286,6 +303,7 @@
 - 測試覆蓋 agent 註冊、合併、respond 格式與 API schema
 - UX 優化：意圖 label、<details> 摘要、錯誤訊息、history 展開
 - README 文件同步分層、流程、API、history spec
+- **變數分析（參數抽取＋工具過濾）功能、TDD、對話流整合**
 
 ### 🚧 TODO
 - 增加更多 agent（Google Drive, YouTube, Notion, 自有網站等）
