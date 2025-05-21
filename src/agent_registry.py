@@ -114,50 +114,85 @@ class AgentRegistry:
         # 合併自動掃描 agents 目錄
         print("[AgentRegistry] 動態模式")
         python_agents = self._load_python_agents()
-        for p in python_agents:
-            aid = p["id"]
-            for field, default in [
-                ("example_queries", []),
-                ("category", ""),
-                ("icon", ""),
-                ("author", ""),
-                ("version", ""),
-                ("tags", []),
-            ]:
-                if field not in p:
-                    p[field] = default
-            merged[aid] = dict(p)  # 動態 agent 會覆蓋靜態 agent
+        for p_agent_entry in python_agents: # Renamed to avoid confusion
+            aid = p_agent_entry["id"]
+            # Default values are now largely handled by the Agent base class's __init__
+            # or by the get_metadata method structure.
+            # We still might want to ensure all keys exist for consistency in the registry,
+            # but the source of truth is agent's get_metadata().
+            # Let's ensure core fields from metadata are present.
+            final_entry = {
+                "id": aid,
+                "name": p_agent_entry.get("name", ""),
+                "description": p_agent_entry.get("description", ""),
+                "parameters": p_agent_entry.get("parameters", []),
+                "example_queries": p_agent_entry.get("example_queries", []),
+                "category": p_agent_entry.get("category", ""),
+                "icon": p_agent_entry.get("icon", ""),
+                "author": p_agent_entry.get("author", ""),
+                "version": p_agent_entry.get("version", ""),
+                "tags": p_agent_entry.get("tags", []),
+                "request_example": p_agent_entry.get("request_example"),
+                "response_example": p_agent_entry.get("response_example"),
+                "function": p_agent_entry.get("function"), # This comes directly from agent_instance.respond
+            }
+            merged[aid] = final_entry  # 動態 agent 會覆蓋靜態 agent (if any static were to be added)
+        
+        # Ensure function is not None, though it should always be set by _load_python_agents
         for a in merged.values():
-            if "function" not in a:
-                a["function"] = None
+            if "function" not in a or a["function"] is None:
+                # This case should ideally not happen if agents are loaded correctly
+                print(f"[AgentRegistry] Warning: Agent {a.get('id')} loaded without a function.")
+                a["function"] = None 
+        
         # 依照 id 排序
         self._agents = {k: merged[k] for k in sorted(merged.keys())}
 
     def _load_python_agents(self):
         agent_list = []
         try:
-            from src import agents
+            from src import agents # Should already be there
+            from src.agents import Agent # Import the base Agent class
             for _, module_name, _ in pkgutil.iter_modules(agents.__path__):
-                module = importlib.import_module(f"src.agents.{module_name}")
-                for attr in dir(module):
-                    obj = getattr(module, attr)
-                    if isinstance(obj, type) and hasattr(obj, "respond") and hasattr(obj, "id"):
-                        agent_list.append({
-                            "id": getattr(obj, "id"),
-                            "name": getattr(obj, "name", obj.__name__),
-                            "description": getattr(obj, "description", ""),
-                            "parameters": getattr(obj, "parameters", []),
-                            "example_queries": getattr(obj, "example_queries", []),
-                            "category": getattr(obj, "category", ""),
-                            "icon": getattr(obj, "icon", ""),
-                            "author": getattr(obj, "author", ""),
-                            "version": getattr(obj, "version", ""),
-                            "tags": getattr(obj, "tags", []),
-                            "function": obj().respond,
-                        })
+                # Skip __init__.py itself if it doesn't define an agent class directly
+                if module_name == "__init__":
+                    continue
+                try:
+                    module = importlib.import_module(f"src.agents.{module_name}")
+                    for attr in dir(module):
+                        obj = getattr(module, attr)
+                        # Check if it's a class, a subclass of our Agent (but not Agent itself)
+                        if isinstance(obj, type) and issubclass(obj, Agent) and obj is not Agent:
+                            try:
+                                agent_instance = obj() # Instantiate the agent
+                                metadata = agent_instance.get_metadata() # Get metadata from the instance
+                                
+                                # Construct the agent entry for the list
+                                agent_entry = {
+                                    "id": metadata["id"],
+                                    "name": metadata["name"],
+                                    "description": metadata["description"],
+                                    "parameters": metadata["parameters"],
+                                    "example_queries": metadata["example_queries"],
+                                    "category": metadata["category"],
+                                    "icon": metadata["icon"],
+                                    "author": metadata["author"],
+                                    "version": metadata["version"],
+                                    "tags": metadata["tags"],
+                                    "request_example": metadata.get("request_example"), # Use .get for optional fields
+                                    "response_example": metadata.get("response_example"), # Use .get for optional fields
+                                    "function": agent_instance.respond, # Store the instance's respond method
+                                }
+                                agent_list.append(agent_entry)
+                            except Exception as e:
+                                print(f"[AgentRegistry] Failed to load agent {attr} from {module_name}: {e}")
+                                log_debug_info(tool_brief=None, system_prompt=None, user_prompt=None, llm_reply=f"Failed to load agent {attr} from {module_name}: {e}", prefix="print_debug")
+                except ImportError as e:
+                    print(f"[AgentRegistry] Failed to import module {module_name}: {e}")
+                    log_debug_info(tool_brief=None, system_prompt=None, user_prompt=None, llm_reply=f"Failed to import module {module_name}: {e}", prefix="print_debug")
         except Exception as e:
-            print("[AgentRegistry] import agents failed:", e)
-            log_debug_info(tool_brief=None, system_prompt=None, user_prompt=None, llm_reply=f"import agents failed: {e}", prefix="print_debug")
+            print(f"[AgentRegistry] General failure during agent loading: {e}")
+            log_debug_info(tool_brief=None, system_prompt=None, user_prompt=None, llm_reply=f"General failure during agent loading: {e}", prefix="print_debug")
         return agent_list
 
     def list_agent_ids(self):

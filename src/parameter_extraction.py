@@ -70,12 +70,3 @@ def filter_available_tools(query, agent_list):
             "available": available
         })
     return result
-
-def llm_extract_parameters(query, tool_parameters):
-    """
-    這裡先 mock LLM 行為，之後可串接 OpenAI/GPT API。
-    """
-    # 只做簡單情境判斷，方便 TDD
-    if "加 3 跟 5" in query:
-        return {"a": 3, "b": 5}
-    return None 
