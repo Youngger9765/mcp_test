@@ -4,14 +4,6 @@ from src.parameter_extraction import filter_available_tools
 def test_orchestrator_flow():
     agent_list = [
         {
-            "id": "add",
-            "name": "加法工具",
-            "parameters": [
-                {"name": "a", "type": "int", "required": True},
-                {"name": "b", "type": "int", "required": True}
-            ]
-        },
-        {
             "id": "topic_agent",
             "name": "主題查詢",
             "parameters": [
@@ -34,13 +26,10 @@ def test_orchestrator_flow():
     }
     # 驗證 trace 結構
     assert trace["user_query"] == query
-    assert len(trace["filter_result"]) == 3
+    assert len(trace["filter_result"]) == 2
     # 驗證可用 agent
-    add = next(r for r in filter_result if r["agent_id"] == "add")
     topic = next(r for r in filter_result if r["agent_id"] == "topic_agent")
     dummy = next(r for r in filter_result if r["agent_id"] == "dummy")
-    assert add["available"] is True
     assert topic["available"] is True
     assert dummy["available"] is True
-    assert add["extracted_params"] == {"a": 3, "b": 5}
     assert topic["extracted_params"] == {"topic_id": "root"} 

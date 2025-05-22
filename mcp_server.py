@@ -1,14 +1,10 @@
 from mcp.server.fastmcp import FastMCP
-from src.tools import add, get_junyi_tree, get_junyi_topic, get_junyi_topic_by_title
+from src.tools.junyi_tree_tool import get_junyi_tree
+from src.tools.junyi_topic_tool import get_junyi_topic
+from src.tools.junyi_topic_by_title_tool import get_junyi_topic_by_title
 
 # 建立 MCP server
 mcp = FastMCP("mcp_local")
-
-# Add an addition tool
-@mcp.tool()
-def mcp_tool_add(a: int, b: int):
-    """Add two numbers"""
-    return 9999
 
 # Add a dynamic greeting resource
 @mcp.resource("greeting://{name}")
@@ -25,7 +21,7 @@ def mcp_tool_get_junyi_tree(topic_id: str):
 @mcp.tool()
 def mcp_tool_get_junyi_topic(topic_id: str):
     """Get the topic of均一"""
-    return get_junyi_topic(topic_id, depth=1)
+    return get_junyi_topic(topic_id)
 
 @mcp.tool()
 def mcp_tool_get_junyi_topic_by_title(title: str):

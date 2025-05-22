@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch
-from src.tools.add_tool import add
+# from src.tools.add_tool import add  # 已移除
 import src.tools.junyi_tree_tool
 import src.tools.junyi_topic_tool
 from src.tools.junyi_topic_by_title_tool import get_junyi_topic_by_title
@@ -8,9 +8,6 @@ from src.tools.openai_tool import openai_query_llm
 from src.agents.a_agent import AAgent
 from src.agents.b_agent import BAgent
 import requests
-
-def test_add():
-    assert add(1, 2) == 9999
 
 @patch("src.tools.junyi_tree_tool.get_junyi_tree", return_value={"tree": "ok"})
 def test_get_junyi_tree(mock_tree):
