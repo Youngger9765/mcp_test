@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <b>📝 今日心得：</b><br>
       <textarea id="today-summary" style="width:100%;min-height:60px;">${data.summary||''}</textarea>
     </div>`;
-    html += `<div style='margin-top:18px;display:flex;gap:12px;'><button id='finish-review'>✅ 完成今天回顧</button><button id='next-day'>🔄 切換明日任務</button><button id='back-home'>🏠 返回首頁</button></div>`;
+    html += `<div style='margin-top:18px;display:flex;gap:12px;'><button id='finish-review'>✅ 完成今天回顧</button><button id='next-day'>🔄 切換明日任務</button><button id='back-home'>🏠 返回首頁</button><button id='goto-calendar'>📅 查看行事曆</button></div>`;
     html += `<div id='review-result' style='margin:18px 0 0 0;'></div>`;
     container.innerHTML = html;
     // 事件
@@ -102,6 +102,26 @@ document.addEventListener('DOMContentLoaded', () => {
       if(data.summary) {
         reviewText += `【今日心得】\n${data.summary}`;
       }
+      // === 新增：寫入行事曆資料 ===
+      const today = data.date;
+      const doneCount = data.tasks.filter(t => t.status === 'completed').length;
+      const totalCount = data.tasks.length;
+      const progress = totalCount > 0 ? doneCount / totalCount : 0;
+      // 嘗試從心得中抓取心情分數（如有）
+      let mood = '';
+      if (data.summary) {
+        const moodMatch = data.summary.match(/([1-5])分/);
+        if (moodMatch) mood = parseInt(moodMatch[1], 10);
+      }
+      const calendarData = {
+        date: today,
+        progress,
+        mood,
+        note: data.summary || '',
+        tasks: data.tasks.map(t => ({ title: t.title, status: t.status, note: t.note }))
+      };
+      localStorage.setItem('navme_calendar_' + today, JSON.stringify(calendarData));
+      // === End ===
       console.log('送出給 AI 的 reviewText：', reviewText);
       // loading dots + 打字動畫
       const reviewDiv = container.querySelector('#review-result');
@@ -141,6 +161,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     container.querySelector('#back-home').onclick = () => {
       window.location.href = 'navme_index.html';
+    };
+    container.querySelector('#goto-calendar').onclick = () => {
+      window.location.href = 'navme_calendar.html';
     };
     // 其他按鈕可依需求擴充
   }

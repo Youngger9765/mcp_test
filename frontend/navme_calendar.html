@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Navme 行事曆</title>
+  <link rel="stylesheet" href="navme_style.css">
+  <style>
+    .calendar-container { max-width: 420px; margin: 32px auto; background: #fff; border-radius: 16px; box-shadow: 0 2px 12px #0001; padding: 24px; }
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .calendar-day, .calendar-cell { text-align: center; padding: 8px 0; }
+    .calendar-day { font-weight: bold; color: #888; }
+    .calendar-cell { border-radius: 8px; cursor: pointer; min-height: 48px; position: relative; transition: background 0.2s; }
+    .calendar-cell.today { border: 2px solid #4cafef; }
+    .calendar-cell .progress-emoji { font-size: 1.3em; }
+    .calendar-cell.selected { background: #e3f2fd; }
+    .calendar-cell:hover { background: #f0f7ff; }
+    .calendar-popup { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; background: #0005; display: flex; align-items: center; justify-content: center; z-index: 10; }
+    .calendar-popup-content { background: #fff; border-radius: 12px; padding: 24px; min-width: 300px; max-width: 90vw; }
+    .calendar-popup-content h3 { margin-top: 0; }
+    .calendar-popup-close { position: absolute; right: 16px; top: 12px; font-size: 1.2em; cursor: pointer; color: #888; }
+    .calendar-review-btn { margin: 24px auto 0; display: block; background: #4cafef; color: #fff; border: none; border-radius: 8px; padding: 12px 24px; font-size: 1.1em; cursor: pointer; transition: background 0.2s; }
+    .calendar-review-btn:hover { background: #2196f3; }
+  </style>
+</head>
+<body>
+  <div class="calendar-container">
+    <div class="calendar-header">
+      <button id="prevMonth">◀</button>
+      <span id="calendarMonth"></span>
+      <button id="nextMonth">▶</button>
+    </div>
+    <div class="calendar-grid" id="calendarDays"></div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+    <button class="calendar-review-btn" id="reviewBtn">定期回顧（AI 分析）</button>
+  </div>
+  <div id="calendarPopup" class="calendar-popup" style="display:none;">
+    <div class="calendar-popup-content">
+      <span class="calendar-popup-close" id="closePopup">✕</span>
+      <div id="popupContent"></div>
+    </div>
+  </div>
+  <script src="navme_calendar.js"></script>
+</body>
+</html> 
