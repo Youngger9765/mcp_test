@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>Navme 導航任務卡</title>
+  <link rel="stylesheet" href="navme_style.css">
+  <style>
+    .mission-btns { display: flex; gap: 16px; margin-top: 18px; }
+    .mission-btns button { padding: 10px 28px; border-radius: 6px; border: none; font-size: 1em; cursor: pointer; }
+    .mission-btns .start { background: #1976d2; color: #fff; }
+    .mission-btns .discard { background: #f1f1f1; color: #333; border: 1px solid #bbb; }
+  </style>
+</head>
+<body>
+  <div class="main-container">
+    <h2 style="text-align:center;margin-bottom:18px;letter-spacing:2px;">🧭 Navme 導航任務卡</h2>
+    <div id="navme-panel">
+      <label for="navme-input"><b>你最近想處理什麼問題？</b></label>
+      <input id="navme-input" type="text" value="小孩不乖" placeholder="請輸入你的困難或目標..." autocomplete="off" style="width:80%;margin:10px 0;" />
+      <button id="navme-send-btn">產生任務卡</button>
+      <button id="navme-reflect-btn" style="margin-left:10px;">每日完成（回顧）</button>
+      <button id="navme-evaluate-btn" style="margin-left:10px;">一週進度</button>
+    </div>
+    <div id="navme-result" style="margin-top:32px;"></div>
+  </div>
+  <script src="navme_index.js"></script>
+</body>
+</html> 

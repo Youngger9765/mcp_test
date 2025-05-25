@@ -38,7 +38,7 @@ run:
 navme:
 	@make run &
 	@sleep 3
-	@open http://localhost:5173/navme.html
+	@open http://localhost:5173/navme_index.html
 
 smart:
 	@make run &

@@ -114,7 +114,7 @@ async def history_answer_api(data: HistoryAnswerRequest):
 
 @app.get("/")
 def index():
-    return FileResponse(os.path.join(frontend_path, "index.html"))
+    return FileResponse(os.path.join(frontend_path, "navme_index.html"))
 
 # 動態產生 agent endpoint
 router = APIRouter()
