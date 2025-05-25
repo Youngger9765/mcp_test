@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>Navme 導航任務卡</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div style="max-width:600px;margin:40px auto 0 auto;">
+    <h2 style="text-align:center;margin-bottom:18px;letter-spacing:2px;">Navme 導航任務卡</h2>
+    <div id="navme-panel">
+      <label for="navme-input"><b>你今天想處理什麼困難？</b></label>
+      <input id="navme-input" type="text" placeholder="請輸入你的困難或目標..." autocomplete="off" style="width:80%;margin:10px 0;" />
+      <button id="navme-send-btn">產生任務卡</button>
+      <button id="navme-reflect-btn" style="margin-left:10px;">每日完成（回顧）</button>
+      <button id="navme-evaluate-btn" style="margin-left:10px;">一週進度</button>
+    </div>
+    <div id="navme-result" style="margin-top:32px;"></div>
+  </div>
+  <script>
+    const API_BASE = "http://localhost:8000";
+    async function callNavmeAgent(query) {
+      const res = await fetch(`${API_BASE}/agent/single_turn_dispatch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: `[navme_agent]${query}` })
+      });
+      return await res.json();
+    }
+
+    function renderResult(result) {
+      const container = document.getElementById('navme-result');
+      container.innerHTML = '';
+      if (result.type === 'result' && result.results && result.results.length > 0) {
+        const r = result.results[0];
+        let html = `<div class='card agent-card'>`;
+        html += `<div class='agent-title'>【Navme 任務卡】</div>`;
+        html += `<div class='agent-content'><b>內容：</b><pre>${JSON.stringify(r, null, 2)}</pre></div>`;
+        html += `</div>`;
+        container.innerHTML = html;
+      } else if (result.type === 'error') {
+        container.innerHTML = `<div class='card agent-card' style='color:red;'><b>錯誤：</b>${result.message || '未知錯誤'}</div>`;
+      } else {
+        container.innerHTML = `<div class='card agent-card'><b>無回應</b></div>`;
+      }
+    }
+
+    document.getElementById('navme-send-btn').onclick = async function() {
+      const input = document.getElementById('navme-input').value.trim();
+      if (!input) return;
+      document.getElementById('navme-result').innerHTML = '<span class="dot-flashing"></span> 產生中...';
+      const result = await callNavmeAgent(input);
+      renderResult(result);
+    };
+    document.getElementById('navme-reflect-btn').onclick = async function() {
+      document.getElementById('navme-result').innerHTML = '<span class="dot-flashing"></span> 產生中...';
+      const result = await callNavmeAgent('回顧');
+      renderResult(result);
+    };
+    document.getElementById('navme-evaluate-btn').onclick = async function() {
+      document.getElementById('navme-result').innerHTML = '<span class="dot-flashing"></span> 產生中...';
+      const result = await callNavmeAgent('進度');
+      renderResult(result);
+    };
+  </script>
+</body>
+</html> 
