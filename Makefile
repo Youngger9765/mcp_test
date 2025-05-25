@@ -1,4 +1,4 @@
-.PHONY: test test-cov install run test-integration-chat
+.PHONY: test test-cov install run test-integration-chat navme smart
 
 # 安裝測試相關套件
 install:
@@ -32,4 +32,15 @@ run:
 	@python server.py &
 	@echo "啟動前端 (http://localhost:5173)..."
 	@cd frontend && serve -l 5173 &
-	@wait 
+	@sleep 2
+	@wait
+
+navme:
+	@make run &
+	@sleep 3
+	@open http://localhost:5173/navme.html
+
+smart:
+	@make run &
+	@sleep 3
+	@open http://localhost:5173/index.html 
