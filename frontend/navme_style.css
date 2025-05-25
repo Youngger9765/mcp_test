@@ -119,3 +119,62 @@ button {
   margin: 48px auto 0 auto;
   padding: 0 32px;
 }
+
+#finish-review {
+  background: linear-gradient(90deg, #1976d2 60%, #42a5f5 100%);
+  color: #fff;
+  font-weight: bold;
+  font-size: 1.13em;
+  box-shadow: 0 4px 16px #1976d230;
+  border: none;
+  padding: 14px 36px;
+  border-radius: 8px;
+  transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
+}
+#finish-review:hover {
+  background: linear-gradient(90deg, #1251a3 60%, #1976d2 100%);
+  box-shadow: 0 6px 24px #1976d250;
+  transform: translateY(-2px) scale(1.04);
+}
+
+.dot-flashing {
+  position: relative;
+  width: 40px;
+  height: 12px;
+  margin: 0 auto 8px auto;
+  display: inline-block;
+}
+.dot-flashing, .dot-flashing::before, .dot-flashing::after {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background: #1976d2;
+  animation: dotFlashing 1s infinite linear alternate;
+}
+.dot-flashing::before {
+  left: 0;
+  animation-delay: 0s;
+}
+.dot-flashing {
+  left: 15px;
+  animation-delay: 0.2s;
+}
+.dot-flashing::after {
+  left: 30px;
+  animation-delay: 0.4s;
+}
+@keyframes dotFlashing {
+  0% { opacity: 0.2; }
+  50%, 100% { opacity: 1; }
+}
+.ai-review-fadein {
+  animation: fadeIn 0.7s;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(16px);}
+  to { opacity: 1; transform: none;}
+}
