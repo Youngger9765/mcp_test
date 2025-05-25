@@ -27,6 +27,30 @@ def dispatch_agent_single_turn(prompt: str) -> Dict[str, Any]:
     print("=== [DEBUG] 開始調度 dispatch_agent_single_turn ===")
     log_debug_info(tool_brief=None, system_prompt=None, user_prompt=prompt, llm_reply=None, prefix="print_debug")
     tool_brief = get_agents_metadata()
+    agent_list = get_agent_list()
+
+    # 新增：判斷是否指定 agent
+    import re
+    m = re.match(r"^\[(\w+)\](.*)", prompt)
+    if m:
+        agent_id = m.group(1)
+        real_query = m.group(2).strip()
+        agent = next((a for a in agent_list if a["id"] == agent_id), None)
+        if agent:
+            try:
+                output = agent["function"](real_query)
+                return {
+                    "type": "result",
+                    "tool": agent_id,
+                    "input": {"query": real_query},
+                    "results": [output],
+                    "trace": {"user_query": prompt, "agent_id": agent_id, "mode": "指定 agent"}
+                }
+            except Exception as e:
+                return {"type": "error", "message": str(e), "trace": {"user_query": prompt, "agent_id": agent_id, "mode": "指定 agent"}}
+        else:
+            return {"type": "error", "message": f"找不到指定 agent: {agent_id}", "trace": {"user_query": prompt, "agent_id": agent_id, "mode": "指定 agent"}}
+
     # 取得 agent list（含 function/parameters）
     agent_list = get_agent_list()
     # 1. 先做變數分析＋工具過濾
