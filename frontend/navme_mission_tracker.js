@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <b>📝 今日心得：</b><br>
       <textarea id="today-summary" style="width:100%;min-height:60px;">${data.summary||''}</textarea>
     </div>`;
-    html += `<div style='margin-top:18px;display:flex;gap:12px;'><button id='finish-review'>✅ 完成今天回顧</button><button id='next-day'>🔄 切換明日任務</button><button id='back-home'>🏠 返回首頁</button><button id='goto-calendar'>📅 查看行事曆</button></div>`;
+    html += `<div style='margin-top:18px;display:flex;gap:12px;'><button id='finish-review'>✅ 完成今天回顧</button></div>`;
     html += `<div id='review-result' style='margin:18px 0 0 0;'></div>`;
     container.innerHTML = html;
     // 事件
@@ -159,12 +159,5 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       reviewDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
-    container.querySelector('#back-home').onclick = () => {
-      window.location.href = 'navme_index.html';
-    };
-    container.querySelector('#goto-calendar').onclick = () => {
-      window.location.href = 'navme_calendar.html';
-    };
-    // 其他按鈕可依需求擴充
   }
 }); 
