@@ -30,11 +30,11 @@
   </div>
   <script>
     const API_BASE = "http://localhost:8000";
-    async function callNavmeAgent(query) {
-      const res = await fetch(`${API_BASE}/agent/single_turn_dispatch`, {
+    async function callNavmeAgent(agentId, query) {
+      const res = await fetch(`${API_BASE}/agent/${agentId}/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: `[navme_agent]${query}` })
+        body: JSON.stringify({ query })
       });
       return await res.json();
     }
@@ -76,6 +76,8 @@
         container.querySelector('.start').onclick = () => {
           alert('任務追蹤功能尚未開放，敬請期待！');
         };
+      } else if (result.error) {
+        container.innerHTML = `<div class='card agent-card' style='color:red;'><b>錯誤：</b>${result.error}<br><pre style='font-size:13px;color:#555;'>${result.raw ? result.raw : ''}</pre></div>`;
       } else if (result.type === 'error') {
         container.innerHTML = `<div class='card agent-card' style='color:red;'><b>錯誤：</b>${result.message || '未知錯誤'}</div>`;
       } else {
@@ -87,18 +89,20 @@
       const input = document.getElementById('navme-input').value.trim();
       if (!input) return;
       document.getElementById('navme-result').innerHTML = '<span class="dot-flashing"></span> 產生中...';
-      const result = await callNavmeAgent(input);
-      renderResult(result);
+      const apiResult = await callNavmeAgent('navme_daily_mission', input);
+      renderResult(apiResult.result || apiResult);
     };
     document.getElementById('navme-reflect-btn').onclick = async function() {
+      const input = document.getElementById('navme-input').value.trim();
       document.getElementById('navme-result').innerHTML = '<span class="dot-flashing"></span> 產生中...';
-      const result = await callNavmeAgent('回顧');
-      renderResult(result);
+      const apiResult = await callNavmeAgent('navme_summary', input);
+      renderResult(apiResult.result || apiResult);
     };
     document.getElementById('navme-evaluate-btn').onclick = async function() {
+      const input = document.getElementById('navme-input').value.trim();
       document.getElementById('navme-result').innerHTML = '<span class="dot-flashing"></span> 產生中...';
-      const result = await callNavmeAgent('進度');
-      renderResult(result);
+      const apiResult = await callNavmeAgent('navme_progress', input);
+      renderResult(apiResult.result || apiResult);
     };
   </script>
 </body>

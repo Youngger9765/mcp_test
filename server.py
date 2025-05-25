@@ -164,7 +164,10 @@ for agent in get_agent_list():
     # endpoint function
     async def agent_respond(data: model, agent=agent):
         try:
+            print("[DEBUG] agent_respond 收到的 data：", data)
+            print("[DEBUG] agent_respond 收到的 data.dict()：", data.dict())
             result = agent["function"](**data.dict())
+            print("[DEBUG] agent_respond 回傳 result：", result)
             return {"result": result}
         except Exception as e:
             return {"error": str(e)}
