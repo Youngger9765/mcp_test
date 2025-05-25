@@ -178,3 +178,64 @@ button {
   from { opacity: 0; transform: translateY(16px);}
   to { opacity: 1; transform: none;}
 }
+
+/* === Calendar 共用樣式 === */
+.calendar-container, .dashboard-calendar {
+  min-width: 320px;
+  max-width: 420px;
+  width: 100%;
+}
+.calendar-grid {
+  width: 100%;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  overflow-x: auto;
+}
+.calendar-cell, .calendar-day {
+  min-width: 0;
+  max-width: unset;
+  min-height: 36px;
+  font-size: 1.08em;
+  padding: 0;
+  margin: 0 auto;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  transition: background 0.18s, border 0.18s, box-shadow 0.18s, color 0.18s;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: none;
+  position: relative;
+  z-index: 0;
+}
+.calendar-cell:hover {
+  background: #e3f2fd;
+  border: 2px solid #64b5f6;
+  box-shadow: 0 2px 8px #90caf950;
+  color: #1976d2;
+  z-index: 2;
+}
+.calendar-cell.selected {
+  background: linear-gradient(90deg, #bbdefb 60%, #e3f2fd 100%);
+  border: 2.5px solid #1976d2;
+  color: #1976d2;
+  box-shadow: 0 4px 16px #1976d230;
+  z-index: 3;
+}
+.calendar-cell.today:not(.selected) {
+  border: 2px solid #42a5f5;
+  background: #e3f2fd;
+}
+.calendar-date-num {
+  font-weight: bold;
+}
+.calendar-header {
+  font-size: 1.1em;
+  margin-bottom: 8px;
+}

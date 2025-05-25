@@ -14,6 +14,34 @@
       .dashboard-container { flex-direction: column; }
       .dashboard-calendar, .dashboard-tracker { max-width: 100%; border-right: none; padding: 18px; }
     }
+    .dashboard-calendar .calendar-cell {
+      transition: background 0.18s, border 0.18s, box-shadow 0.18s, color 0.18s;
+      cursor: pointer;
+      border: 2px solid transparent;
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: none;
+      position: relative;
+      z-index: 0;
+    }
+    .dashboard-calendar .calendar-cell:hover {
+      background: #e3f2fd;
+      border: 2px solid #64b5f6;
+      box-shadow: 0 2px 8px #90caf950;
+      color: #1976d2;
+      z-index: 2;
+    }
+    .dashboard-calendar .calendar-cell.selected {
+      background: linear-gradient(90deg, #bbdefb 60%, #e3f2fd 100%);
+      border: 2.5px solid #1976d2;
+      color: #1976d2;
+      box-shadow: 0 4px 16px #1976d230;
+      z-index: 3;
+    }
+    .dashboard-calendar .calendar-cell.today:not(.selected) {
+      border: 2px solid #42a5f5;
+      background: #e3f2fd;
+    }
   </style>
 </head>
 <body>
