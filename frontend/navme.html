@@ -4,13 +4,24 @@
   <meta charset="UTF-8">
   <title>Navme 導航任務卡</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    .mission-meta { font-size: 1.1em; margin: 18px 0 8px 0; font-weight: bold; }
+    .mission-summary { color: #444; margin-bottom: 18px; }
+    .mission-card-list { background: #f8fafc; border-radius: 12px; padding: 18px 22px; margin-bottom: 18px; box-shadow: 0 2px 8px #0001; }
+    .mission-card-list ul { padding-left: 22px; margin: 0; }
+    .mission-card-list li { margin-bottom: 10px; font-size: 1.08em; }
+    .mission-btns { display: flex; gap: 16px; margin-top: 18px; }
+    .mission-btns button { padding: 10px 28px; border-radius: 6px; border: none; font-size: 1em; cursor: pointer; }
+    .mission-btns .start { background: #1976d2; color: #fff; }
+    .mission-btns .discard { background: #f1f1f1; color: #333; border: 1px solid #bbb; }
+  </style>
 </head>
 <body>
   <div style="max-width:600px;margin:40px auto 0 auto;">
     <h2 style="text-align:center;margin-bottom:18px;letter-spacing:2px;">Navme 導航任務卡</h2>
     <div id="navme-panel">
-      <label for="navme-input"><b>你今天想處理什麼困難？</b></label>
-      <input id="navme-input" type="text" placeholder="請輸入你的困難或目標..." autocomplete="off" style="width:80%;margin:10px 0;" />
+      <label for="navme-input"><b>你最近想處理什麼問題？</b></label>
+      <input id="navme-input" type="text" value="小孩不乖" placeholder="請輸入你的困難或目標..." autocomplete="off" style="width:80%;margin:10px 0;" />
       <button id="navme-send-btn">產生任務卡</button>
       <button id="navme-reflect-btn" style="margin-left:10px;">每日完成（回顧）</button>
       <button id="navme-evaluate-btn" style="margin-left:10px;">一週進度</button>
@@ -32,12 +43,39 @@
       const container = document.getElementById('navme-result');
       container.innerHTML = '';
       if (result.type === 'result' && result.results && result.results.length > 0) {
-        const r = result.results[0];
-        let html = `<div class='card agent-card'>`;
-        html += `<div class='agent-title'>【Navme 任務卡】</div>`;
-        html += `<div class='agent-content'><b>內容：</b><pre>${JSON.stringify(r, null, 2)}</pre></div>`;
+        result = result.results[0];
+      }
+      if (result.type === 'mission_card' && result.content && Array.isArray(result.content)) {
+        const meta = result.meta || {};
+        let html = '';
+        if (meta.topic) {
+          html += `<div class='mission-meta'>主題：「${meta.topic}」</div>`;
+        }
+        if (meta.summary) {
+          html += `<div class='mission-summary'>${meta.summary}</div>`;
+        }
+        html += `<div style='display:flex;gap:18px;flex-wrap:wrap;margin-bottom:18px;'>`;
+        result.content.forEach(item => {
+          html += `<div class='mission-card-list' style='flex:1 1 30%;min-width:220px;max-width:320px;'>`;
+          html += `<div style='font-weight:bold;font-size:1.13em;margin-bottom:8px;'>${item.title}</div>`;
+          if(item.description) html += `<div style='color:#555;margin-bottom:8px;'>${item.description}</div>`;
+          if(item.time_hint) html += `<div style='color:#888;font-size:0.98em;'>${item.time_hint}</div>`;
+          html += `</div>`;
+        });
         html += `</div>`;
+        html += `<div class='mission-btns'>
+          <button class='start'>開始任務追蹤</button>
+          <button class='discard'>捨棄重新輸入</button>
+        </div>`;
         container.innerHTML = html;
+        // 按鈕事件
+        container.querySelector('.discard').onclick = () => {
+          document.getElementById('navme-input').value = '';
+          container.innerHTML = '';
+        };
+        container.querySelector('.start').onclick = () => {
+          alert('任務追蹤功能尚未開放，敬請期待！');
+        };
       } else if (result.type === 'error') {
         container.innerHTML = `<div class='card agent-card' style='color:red;'><b>錯誤：</b>${result.message || '未知錯誤'}</div>`;
       } else {

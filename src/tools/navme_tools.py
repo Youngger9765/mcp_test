@@ -4,12 +4,30 @@ from src.tools.openai_tool import openai_query_llm
 
 def generate_daily_mission(query: str) -> dict:
     """根據輸入 query，生成 Navme 今日任務卡清單"""
-    instructions = "你是一個任務規劃助理，請根據用戶輸入的困難或目標，生成一份今日任務卡，內容要具體、可執行，並用條列式呈現。請用 JSON 格式回傳，如 {\"mission\": \"...\"}"
+    instructions = (
+        "你是一個任務規劃助理，請根據用戶輸入的困難或目標，"
+        "生成一份今日任務卡，內容要具體、可執行，並用條列式呈現。"
+        "請直接用以下 JSON 格式回傳（不要有多餘說明）：\n"
+        "{\n"
+        "  \"type\": \"mission_card\",\n"
+        "  \"content\": [\n"
+        "    {\"title\": \"...\", \"description\": \"...\", \"time_hint\": \"...\"},\n"
+        "    ...\n"
+        "  ],\n"
+        "  \"meta\": {\n"
+        "    \"topic\": \"...\",  # AI自動分析主題\n"
+        "    \"intent\": \"generate_daily_mission\",\n"
+        "    \"agent_id\": \"navme_agent\",\n"
+        "    \"summary\": \"...\"  # AI對需求的摘要\n"
+        "  }\n"
+        "}\n"
+        "請務必回傳合法 JSON，並讓 content 至少有 3 條具體任務。"
+    )
     llm_output = openai_query_llm(instructions=instructions, input=query)
     try:
         return json.loads(llm_output)
     except Exception:
-        return {"mission": llm_output}
+        return {"error": "LLM 回傳格式錯誤", "raw": llm_output}
 
 
 def summarize_today_log(log: str) -> dict:

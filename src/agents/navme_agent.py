@@ -1,7 +1,7 @@
-from .base_agent import BaseAgent
+# from .base_agent import BaseAgent
 from src.tools.navme_tools import generate_daily_mission, summarize_today_log, evaluate_progress
 
-class NavmeAgent(BaseAgent):
+class NavmeAgent:
     id = "navme_agent"
     name = "Navme 導航任務代理"
     description = "提供每日任務、回顧與追蹤功能"
@@ -11,31 +11,36 @@ class NavmeAgent(BaseAgent):
         "我想回顧這週的學習情況"
     ]
 
-    def respond(self, query: str, history=None, **kwargs) -> dict:
-        # 這裡可用 LLM 或規則產生，這裡先寫死範例
+    def respond(self, query: str, history=None, **kwargs):
+        # 呼叫 generate_daily_mission，並包裝成 mission_card schema
+        mission = generate_daily_mission(query)
+        # mission 可能是 {"mission": "..."} 或 {"content": [...], "meta": {...}}
+        if "content" in mission and "meta" in mission:
+            # 若 generate_daily_mission 已經回傳完整 mission_card schema
+            return mission
+        # 否則包裝成標準格式
+        content = []
+        # 嘗試將 mission["mission"] 拆成多條
+        if isinstance(mission, dict) and "mission" in mission:
+            lines = [line.strip() for line in mission["mission"].split("\n") if line.strip()]
+            for line in lines:
+                # 嘗試用數字. 或 - 分段
+                import re
+                m = re.match(r"^(\d+\.|[-•])\s*(.*)", line)
+                title = m.group(2) if m else line
+                content.append({
+                    "title": title,
+                    "description": "",
+                    "time_hint": ""
+                })
+        meta = {
+            "topic": "AI自動分析主題",  # 可進階用 LLM 分析
+            "intent": "generate_daily_mission",
+            "agent_id": "navme_agent",
+            "summary": "AI根據你的輸入產生今日任務卡，請依序完成。"
+        }
         return {
             "type": "mission_card",
-            "content": [
-                {
-                    "title": "上午觀察自己 2 次情緒波動",
-                    "description": "記錄當下事件與感受",
-                    "time_hint": "上午"
-                },
-                {
-                    "title": "傍晚進行 1 次 3 分鐘靜心練習",
-                    "description": "閉眼觀呼吸、放鬆",
-                    "time_hint": "傍晚"
-                },
-                {
-                    "title": "晚上填寫情緒日誌",
-                    "description": "評分 + 撰寫簡短回顧",
-                    "time_hint": "晚上"
-                }
-            ],
-            "meta": {
-                "topic": "情緒覺察與能量追蹤",
-                "intent": "generate_daily_mission",
-                "agent_id": "navme_agent",
-                "summary": "AI判斷你希望改善情緒狀態，可從每日觀察開始。"
-            }
+            "content": content,
+            "meta": meta
         } 
