@@ -45,6 +45,10 @@
   </style>
 </head>
 <body>
+  <div id="navbar"></div>
+  <script>
+    fetch('navme_navbar.html').then(r=>r.text()).then(html=>{document.getElementById('navbar').innerHTML=html});
+  </script>
   <div class="dashboard-container">
     <div class="dashboard-calendar">
       <div id="dashboard-calendar"></div>

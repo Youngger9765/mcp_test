@@ -12,6 +12,10 @@
   </style>
 </head>
 <body>
+  <div id="navbar"></div>
+  <script>
+    fetch('navme_navbar.html').then(r=>r.text()).then(html=>{document.getElementById('navbar').innerHTML=html});
+  </script>
   <div class="main-container">
     <h2 style="text-align:center;margin-bottom:18px;letter-spacing:2px;">🧭 Navme 導航任務卡</h2>
     <div id="navme-panel">
