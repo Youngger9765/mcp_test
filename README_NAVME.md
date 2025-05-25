@@ -107,3 +107,9 @@
   - 導覽列（navbar）統一，所有頁面可快速切換至行事曆。
   - 任務追蹤頁、Dashboard、行事曆頁皆可檢視與回顧每日紀錄。
   - 移除多餘按鈕，介面更簡潔。
+
+## TODO
+- [ ] 將「任務追蹤」功能與「Dashboard」頁合併，統一於 dashboard.html 呈現
+- [ ] 將 navme_mission_tracker.js 互動邏輯整合進 dashboard.js，保留所有打卡、備註、AI 回顧功能
+- [ ] navbar 僅保留首頁與 Dashboard 主要入口，移除單獨任務追蹤頁
+- [ ] 測試合併後所有互動、資料流、AI 回顧功能
